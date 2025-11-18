@@ -17,7 +17,1051 @@
             overflow: hidden;
         }
         #game-container {
-           ... (content truncated for preview) ...  
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 100vw;
+            max-height: 100vh;
+            overflow: hidden;
+            background-color: #2b2b2b; /* 어두운 배경 */
+        }
+        canvas {
+            display: block;
+            background-color: #333;
+            width: 100%;
+            height: 100%;
+        }
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        #top-ui, #bottom-ui {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #top-ui {
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+         #bottom-ui {
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+            flex-direction: column;
+            align-items: stretch;
+            gap: 10px;
+        }
+        #bunker-hp-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #555;
+            border: 1px solid #777;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #bunker-hp-fill {
+            width: 100%;
+            height: 100%;
+            background-color: #4CAF50; /* 녹색 */
+            transition: width 0.3s ease;
+        }
+        #xp-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #555;
+            border: 1px solid #777;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #xp-fill {
+            width: 0%;
+            height: 100%;
+            background-color: #3498db; /* 파란색 */
+            transition: width 0.3s ease;
+        }
+        #stats {
+            display: flex;
+            gap: 20px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        #level-text, #kill-count, #timer {
+            color: #fff;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        /* 보유 유닛 표시 */
+        #unit-display {
+            display: flex;
+            gap: 15px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #fff;
+        }
+        #unit-display span {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* 몬스터 정보 표시 */
+        #monster-info {
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #ddd;
+            padding-bottom: 5px;
+        }
+
+        /* 오버레이 (시작, 레벨업, 게임오버) */
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        .overlay h1 {
+            font-size: 3em;
+            color: #fff;
+            margin-bottom: 20px;
+            text-shadow: 3px 3px 5px rgba(0,0,0,0.7);
+        }
+        .overlay p {
+            font-size: 1.2em;
+            color: #ddd;
+            margin-bottom: 30px;
+        }
+
+        /* 난이도 버튼 */
+        #difficulty-select {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 80%;
+            max-width: 300px;
+        }
+        .diff-button {
+            font-family: inherit;
+            font-size: 1.3em;
+            font-weight: bold;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        .diff-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+        #diff-1 { background-color: #4CAF50; } /* 아주 쉬움 */
+        #diff-1:hover { background-color: #45a049; }
+        #diff-2 { background-color: #3498db; } /* 쉬움 */
+        #diff-2:hover { background-color: #2980b9; }
+        #diff-3 { background-color: #7f8c8d; } /* 보통 */
+        #diff-3:hover { background-color: #717d7e; }
+        #diff-4 { background-color: #f1c40f; } /* 조금 어려움 */
+        #diff-4:hover { background-color: #f39c12; }
+        #diff-5 { background-color: #e74c3c; } /* 매우 어려움 */
+        #diff-5:hover { background-color: #c0392b; }
+
+
+        #upgrade-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 80%;
+            max-width: 400px;
+        }
+        .upgrade-option {
+            background: #444;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #555;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+        }
+        .upgrade-option:hover {
+            background: #555;
+            border-color: #777;
+            transform: translateY(-3px);
+        }
+        .upgrade-option h3 {
+            margin: 0 0 5px 0;
+            color: #3498db; /* 파란색 */
+        }
+        .upgrade-option p {
+            margin: 0;
+            color: #ccc;
+            font-size: 0.9em;
+        }
+
+        #game-over-overlay {
+            display: none; /* 평소엔 숨김 */
+        }
+        
+        #start-overlay {
+            display: flex; /* 처음엔 보임 */
+        }
+
+        #level-up-overlay {
+            display: none; /* 평소엔 숨김 */
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game-canvas"></canvas>
+        <div id="ui-container">
+            <div id="top-ui">
+                <div id="stats">
+                    <span id="level-text">LV. 1</span>
+                    <span id="kill-count">Kills: 0</span>
+                    <span id="timer">00:00</span>
+                </div>
+                <!-- 보유 유닛 표시 UI -->
+                <div id="unit-display">
+                    <span id="marine-count">🧑‍🚀 0</span>
+                    <span id="firebat-count">🔥 0</span>
+                    <span id="tank-count">🛡️ 0</span>
+                    <span id="ghost-count">👻 0</span>
+                </div>
+            </div>
+            <div id="bottom-ui">
+                <!-- 몬스터 정보 UI -->
+                <div id="monster-info">등장: 🐛</div>
+                <div id="bunker-hp-bar">
+                    <div id="bunker-hp-fill"></div>
+                </div>
+                <div id="xp-bar">
+                    <div id="xp-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 게임 시작 오버레이 -->
+        <div id="start-overlay" class="overlay">
+            <h1>기지 방어</h1>
+            <p>난이도를 선택하세요.</p>
+            <!-- 난이도 선택 버튼 (배율 수정) -->
+            <div id="difficulty-select">
+                <button id="diff-1" class="diff-button" data-diff="0.6">아주 쉬움</button>
+                <button id="diff-2" class="diff-button" data-diff="0.8">쉬움</button>
+                <button id="diff-3" class="diff-button" data-diff="1.2">보통</button>
+                <button id="diff-4" class="diff-button" data-diff="1.8">조금 어려움</button>
+                <button id="diff-5" class="diff-button" data-diff="2.5">매우 어려움</button>
+            </div>
+        </div>
+
+        <!-- 레벨업 오버레이 -->
+        <div id="level-up-overlay" class="overlay">
+            <h1>레벨 업!</h1>
+            <p>업그레이드를 선택하세요.</p>
+            <div id="upgrade-container">
+                <!-- 업그레이드 옵션이 동적으로 채워집니다. -->
+            </div>
+        </div>
+
+        <!-- 게임 오버 오버레이 -->
+        <div id="game-over-overlay" class="overlay">
+            <h1>게임 오버</h1>
+            <p id="game-over-stats">최종 생존 시간: 00:00 | 최종 킬 수: 0</p>
+            <button id="restart-button" class="diff-button" style="background-color: #4CAF50;">다시 시작</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // 모듈 상단에 주요 변수 선언
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        // UI 요소
+        const ui = {
+            levelText: document.getElementById('level-text'),
+            killCount: document.getElementById('kill-count'),
+            timer: document.getElementById('timer'),
+            bunkerHpFill: document.getElementById('bunker-hp-fill'),
+            xpFill: document.getElementById('xp-fill'),
+            startOverlay: document.getElementById('start-overlay'),
+            levelUpOverlay: document.getElementById('level-up-overlay'),
+            gameOverOverlay: document.getElementById('game-over-overlay'),
+            upgradeContainer: document.getElementById('upgrade-container'),
+            restartButton: document.getElementById('restart-button'),
+            difficultyButtons: document.querySelectorAll('.diff-button[data-diff]'),
+            // UI 요소 추가
+            marineCount: document.getElementById('marine-count'),
+            firebatCount: document.getElementById('firebat-count'),
+            tankCount: document.getElementById('tank-count'),
+            ghostCount: document.getElementById('ghost-count'),
+            monsterInfo: document.getElementById('monster-info'),
+        };
+
+        let gameState = {
+            isRunning: false,
+            isPaused: false,
+            isLevelUp: false,
+            startTime: 0,
+            elapsedTime: 0, // 총 게임 시간 (밀리초)
+            lastTime: 0,
+            killCount: 0,
+            playerBase: null, // Bunker -> PlayerBase
+            enemies: [],
+            projectiles: [],
+            effects: [], // 폭발/화염 효과
+            weapons: [],
+            spawnTimer: 0,
+            spawnInterval: 2500, // 2.5초마다 스폰 (초반 난이도 하향)
+            difficultyMultiplier: 1.0, // 난이도 배율
+            lastMonsterInfo: "" // 몬스터 정보 캐시
+        };
+
+        // 유틸리티 함수
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        // 캔버스 크기 조절
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            
+            if (gameState.playerBase) {
+                gameState.playerBase.x = width / 2;
+                gameState.playerBase.y = height / 2;
+            }
+        }
+        
+        // 시각 효과 클래스 (폭발, 화염 등)
+        class Effect {
+            constructor(x, y, emoji, size, duration = 300) {
+                this.x = x;
+                this.y = y;
+                this.emoji = emoji;
+                this.duration = duration; // 밀리초
+                this.createdAt = Date.now();
+                this.size = size; 
+            }
+
+            update(deltaTime) {
+                if (Date.now() - this.createdAt > this.duration) {
+                    this.remove();
+                }
+            }
+
+            draw() {
+                ctx.globalAlpha = 0.7; // 약간 반투명
+                ctx.font = `${this.size}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+                ctx.globalAlpha = 1.0;
+            }
+
+            remove() {
+                const index = gameState.effects.indexOf(this);
+                if (index > -1) {
+                    gameState.effects.splice(index, 1);
+                }
+            }
+        }
+
+
+        // 플레이어 기지 클래스 (구 벙커)
+        class PlayerBase {
+            constructor() {
+                this.x = width / 2;
+                this.y = height / 2;
+                this.radius = 35; // 충돌 반경
+                this.color = '#8B4513'; // 갈색 (울타리색)
+                this.maxHp = 100;
+                this.hp = this.maxHp;
+                this.level = 1;
+                this.xp = 0;
+                this.xpToNextLevel = 10;
+                this.regen = 0.1; // 초당 체력 0.1 회복
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                const fenceWidth = 10;
+                const fenceLength = 40;
+                
+                // 울타리 모양 그리기 (4방향)
+                ctx.fillRect(this.x - fenceLength / 2, this.y - this.radius, fenceLength, fenceWidth);
+                ctx.fillRect(this.x - fenceLength / 2, this.y + this.radius - fenceWidth, fenceLength, fenceWidth);
+                ctx.fillRect(this.x - this.radius, this.y - fenceLength / 2, fenceWidth, fenceLength);
+                ctx.fillRect(this.x + this.radius - fenceWidth, this.y - fenceLength / 2, fenceWidth, fenceLength);
+            }
+
+            update(deltaTime) {
+                // 체력 재생
+                if (this.regen > 0 && this.hp < this.maxHp) {
+                    this.hp += this.regen * (deltaTime / 1000);
+                    if (this.hp > this.maxHp) this.hp = this.maxHp;
+                }
+                
+                ui.bunkerHpFill.style.width = `${(this.hp / this.maxHp) * 100}%`;
+            }
+
+            takeDamage(amount) {
+                this.hp -= amount;
+                if (this.hp <= 0) {
+                    this.hp = 0;
+                    gameOver();
+                }
+                ui.bunkerHpFill.style.width = `${(this.hp / this.maxHp) * 100}%`;
+            }
+
+            gainXp(amount) {
+                if (!gameState.isRunning) return;
+
+                this.xp += amount;
+                if (this.xp >= this.xpToNextLevel) {
+                    this.levelUp();
+                }
+                ui.xpFill.style.width = `${(this.xp / this.xpToNextLevel) * 100}%`;
+            }
+
+            levelUp() {
+                this.xp -= this.xpToNextLevel; // 남은 경험치 이월
+                this.level++;
+                this.xpToNextLevel = Math.floor(this.xpToNextLevel * 1.5); // 다음 레벨 필요 경험치 증가
+                ui.levelText.textContent = `LV. ${this.level}`;
+                
+                // 레벨업 시 체력 100% 회복
+                this.hp = this.maxHp; 
+                
+                pauseGame(true);
+                gameState.isLevelUp = true;
+                showLevelUpUI();
+            }
+        }
+
+        // 무기 클래스 (마린, 파이어뱃, 탱크, 고스트)
+        class Weapon {
+            constructor(type, owner) {
+                this.type = type;
+                this.owner = owner;
+                this.level = 1;
+                this.lastShotTime = 0;
+                
+                // 타입별 기본 스탯 (사정거리, 공속 수정)
+                if (type === 'marine') {
+                    this.range = 300; // 상향
+                    this.attackSpeed = 900; // 상향
+                    this.damage = 8;
+                    this.projectileSpeed = 8;
+                } else if (type === 'firebat') {
+                    this.range = 120; // 상향 (이제 이게 AOE 범위)
+                    this.attackSpeed = 1300; // 상향
+                    this.damage = 10;
+                    // projectileSpeed 제거
+                } else if (type === 'tank') {
+                    this.range = 550; // 상향 (최장 사거리)
+                    this.attackSpeed = 2800; // 상향
+                    this.damage = 30; // 스플래시 데미지
+                    this.aoeRadius = 70; // 상향 (스플래시 범위)
+                } else if (type === 'ghost') {
+                    this.range = 450; // 상향 (2번째 사거리)
+                    this.attackSpeed = 3500; // 상향
+                    this.damage = 50; // 강력한 한방
+                    this.projectileSpeed = 20; // 빠름
+                }
+            }
+
+            update(deltaTime) {
+                const now = Date.now();
+                if (now - this.lastShotTime > this.attackSpeed) {
+                    // 사정거리 내의 모든 적을 찾음
+                    const targetsInRange = gameState.enemies.filter(enemy => {
+                        const dx = enemy.x - this.owner.x;
+                        const dy = enemy.y - this.owner.y;
+                        return Math.sqrt(dx * dx + dy * dy) <= this.range;
+                    });
+                    
+                    if (targetsInRange.length > 0) {
+                        let target; // 탱크, 고스트, 마린은 타겟이 필요
+                        
+                        if (this.type === 'firebat') {
+                            // 파이어뱃은 타겟 없이 그냥 발사
+                            this.shoot(null, targetsInRange); // 범위 내 모든 적을 전달
+                        } else {
+                            // 나머지 유닛들
+                            if (this.type === 'ghost') {
+                                // 고스트: 체력이 가장 많은 적 우선 타겟
+                                targetsInRange.sort((a, b) => b.hp - a.hp);
+                                target = targetsInRange[0];
+                            } else {
+                                // 마린, 탱크: 사정거리 내 랜덤 타겟 (오버킬 방지)
+                                target = targetsInRange[Math.floor(Math.random() * targetsInRange.length)];
+                            }
+                            this.shoot(target);
+                        }
+                        this.lastShotTime = now;
+                    }
+                }
+            }
+
+            shoot(target, targetsInRange = []) { // 파이어뱃을 위해 targetsInRange 추가
+                if (this.type === 'tank') {
+                    // 탱크: 즉발 폭발 및 범위 데미지
+                    gameState.effects.push(new Effect(target.x, target.y, '💥', 60)); // 폭발 크기 60
+                    
+                    // 범위 데미지
+                    gameState.enemies.forEach(otherEnemy => {
+                        const dxSplash = target.x - otherEnemy.x;
+                        const dySplash = target.y - otherEnemy.y;
+                        if (Math.sqrt(dxSplash * dxSplash + dySplash * dySplash) < this.aoeRadius) {
+                            otherEnemy.takeDamage(this.damage); // 100% 범위 데미지
+                        }
+                    });
+
+                } else if (this.type === 'firebat') {
+                    // 파이어뱃: 즉발 근거리 범위 데미지 (투사체 없음)
+                    // targetsInRange (이미 사정거리 내에 있는 적들)을 바로 공격
+                    gameState.effects.push(new Effect(this.owner.x, this.owner.y, '🔥', this.range * 2, 200)); // 화염 크기 = 사거리*2, 0.2초간 지속
+                    targetsInRange.forEach(enemy => {
+                        enemy.takeDamage(this.damage);
+                    });
+
+                } else {
+                    // 마린, 고스트: 투사체 발사
+                    const dx = target.x - this.owner.x;
+                    const dy = target.y - this.owner.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    const velocityX = (dx / dist) * this.projectileSpeed;
+                    const velocityY = (dy / dist) * this.projectileSpeed;
+
+                    gameState.projectiles.push(new Projectile(
+                        this.owner.x,
+                        this.owner.y,
+                        velocityX,
+                        velocityY,
+                        this.damage,
+                        this.type
+                    ));
+                }
+            }
+
+            applyStats() {
+                // 레벨업 스탯 적용 (공속 상향 반영)
+                const levelBonus = this.level - 1;
+                if (this.type === 'marine') {
+                    this.damage = 8 + levelBonus * 2;
+                    this.attackSpeed = Math.max(150, 900 - levelBonus * 60); // 공속 업그레이드 상향
+                } else if (this.type === 'firebat') {
+                    this.damage = 10 + levelBonus * 3;
+                    this.range = 120 + levelBonus * 10; // 범위 증가
+                    this.attackSpeed = Math.max(300, 1300 - levelBonus * 80);
+                } else if (this.type === 'tank') {
+                    this.damage = 30 + levelBonus * 5;
+                    this.attackSpeed = Math.max(800, 2800 - levelBonus * 150);
+                    this.aoeRadius = 70 + levelBonus * 10; // 범위 증가 상향
+                } else if (type === 'ghost') {
+                    this.damage = 50 + levelBonus * 10;
+                    this.attackSpeed = Math.max(1000, 3500 - levelBonus * 250);
+                }
+            }
+        }
+
+        // 총알 클래스 (파이어뱃 제거)
+        class Projectile {
+            constructor(x, y, vx, vy, damage, type) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.damage = damage;
+                this.type = type;
+                this.pierce = false; // 관통 없음
+                
+                if (type === 'marine') {
+                    this.radius = 3;
+                    this.color = '#FFFF00'; // 노랑
+                } else if (type === 'ghost') {
+                    this.radius = 4;
+                    this.color = '#00BFFF'; // 하늘색
+                }
+            }
+
+            update(deltaTime) {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // 화면 밖으로 나가면 제거
+                if (this.x < 0 || this.x > width || this.y < 0 || this.y > height) {
+                    this.remove();
+                    return; // 함수 종료
+                }
+
+                // 충돌 감지
+                for (let i = gameState.enemies.length - 1; i >= 0; i--) {
+                    const enemy = gameState.enemies[i];
+                    if (!enemy) continue; // 예외 처리
+
+                    const dx = this.x - enemy.x;
+                    const dy = this.y - enemy.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+
+                    if (dist < this.radius + enemy.radius) {
+                        // 메인 타겟 데미지
+                        enemy.takeDamage(this.damage);
+                        this.remove(); // 관통이 아니므로 총알 제거
+                        break; // 반복 중지
+                    }
+                }
+            }
+
+            draw() {
+                // 일반 원
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            remove() {
+                const index = gameState.projectiles.indexOf(this);
+                if (index > -1) {
+                    gameState.projectiles.splice(index, 1);
+                }
+            }
+        }
+
+        // 적 클래스
+        class Enemy {
+            constructor(type) {
+                this.type = type;
+                this.isAttacking = false;
+                this.attackCooldown = 1000; // 1초마다 공격
+                this.lastAttackTime = 0;
+                const diff = gameState.difficultyMultiplier; // 난이도 배율 적용
+
+                // 스폰 위치 (화면 가장자리)
+                const spawnSide = Math.floor(Math.random() * 4);
+                if (spawnSide === 0) { this.x = Math.random() * width; this.y = -20; }
+                else if (spawnSide === 1) { this.x = width + 20; this.y = Math.random() * height; }
+                else if (spawnSide === 2) { this.x = Math.random() * width; this.y = height + 20; }
+                else { this.x = -20; this.y = Math.random() * height; }
+
+                // 타입별 스탯 (난이도 배율 적용)
+                if (type === 'zergling') {
+                    this.radius = 12;
+                    this.speed = 1.5 + Math.random() * 0.5;
+                    this.maxHp = Math.ceil(5 * diff);
+                    this.damage = Math.ceil(1 * diff);
+                    this.xpValue = Math.max(1, Math.ceil(1 / (diff * 0.5 + 0.5))); // 난이도 높을수록 경험치 감소 (조정)
+                    this.emoji = '🐛';
+                } else if (type === 'hydralisk') {
+                    this.radius = 16;
+                    this.speed = 1.0 + Math.random() * 0.3;
+                    this.maxHp = Math.ceil(15 * diff);
+                    this.damage = Math.ceil(3 * diff);
+                    this.xpValue = Math.max(1, Math.ceil(3 / (diff * 0.5 + 0.5)));
+                    this.emoji = '🐍';
+                } else if (type === 'muta') {
+                    this.radius = 10;
+                    this.speed = 2.5 + Math.random() * 0.5; // 빠름
+                    this.maxHp = Math.ceil(4 * diff);
+                    this.damage = Math.ceil(1 * diff);
+                    this.xpValue = Math.max(1, Math.ceil(1 / (diff * 0.5 + 0.5)));
+                    this.emoji = '🦇';
+                } else if (type === 'ultra') {
+                    this.radius = 30; // 큼
+                    this.speed = 0.8 + Math.random() * 0.2; // 느림
+                    this.maxHp = Math.ceil(100 * diff);
+                    this.damage = Math.ceil(10 * diff);
+                    this.xpValue = Math.max(5, Math.ceil(20 / (diff * 0.5 + 0.5)));
+                    this.emoji = '🦖';
+                }
+                this.hp = this.maxHp;
+            }
+
+            update(deltaTime) {
+                const playerBase = gameState.playerBase;
+                const dx = playerBase.x - this.x;
+                const dy = playerBase.y - this.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // 기지와 닿았는지 확인
+                if (dist < this.radius + playerBase.radius) {
+                    this.isAttacking = true;
+                } else {
+                    this.isAttacking = false;
+                }
+
+                if (this.isAttacking) {
+                    // 공격
+                    const now = Date.now();
+                    if (now - this.lastAttackTime > this.attackCooldown) {
+                        playerBase.takeDamage(this.damage);
+                        this.lastAttackTime = now;
+                    }
+                } else {
+                    // 이동
+                    this.x += (dx / dist) * this.speed;
+                    this.y += (dy / dist) * this.speed;
+                }
+            }
+
+            draw() {
+                // 이모지 그리기
+                ctx.font = `${this.radius * 2}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.emoji, this.x, this.y);
+
+                // 체력바
+                if (this.hp < this.maxHp) {
+                    const hpBarWidth = this.radius * 2;
+                    const hpBarHeight = 4;
+                    const yOffset = this.y + this.radius + 5;
+                    
+                    ctx.fillStyle = '#FF0000'; // 빨간색 (배경)
+                    ctx.fillRect(this.x - hpBarWidth / 2, yOffset, hpBarWidth, hpBarHeight);
+                    
+                    ctx.fillStyle = '#00FF00'; // 녹색 (현재 체력)
+                    ctx.fillRect(this.x - hpBarWidth / 2, yOffset, hpBarWidth * (this.hp / this.maxHp), hpBarHeight);
+                }
+            }
+
+            takeDamage(amount) {
+                this.hp -= amount;
+                if (this.hp <= 0) {
+                    this.die();
+                }
+            }
+
+            die() {
+                // 적 배열에서 제거
+                const index = gameState.enemies.indexOf(this);
+                if (index > -1) {
+                    gameState.enemies.splice(index, 1);
+                }
+                gameState.playerBase.gainXp(this.xpValue); // 즉시 경험치 획득
+
+                gameState.killCount++;
+                ui.killCount.textContent = `Kills: ${gameState.killCount}`;
+            }
+        }
+
+        // 업그레이드 목록
+        const allUpgrades = [
+            { id: 'add_marine', title: '마린 충원', desc: '새로운 마린을 기지에 추가합니다. (최대 6기)' },
+            { id: 'add_firebat', title: '파이어뱃 충원', desc: '근거리 광역 공격 파이어뱃을 추가합니다. (최대 2기)' },
+            { id: 'add_tank', title: '시즈 탱크 추가', desc: '강력한 범위 피해를 주는 탱크를 추가합니다. (최대 2기)' },
+            { id: 'add_ghost', title: '고스트 추가', desc: '강력한 저격 유닛 고스트를 추가합니다. (최대 2기)' },
+            { id: 'upgrade_marine', title: '마린 공격력/연사력 증가', desc: '모든 마린의 공격력과 공격 속도가 증가합니다.' },
+            { id: 'upgrade_firebat', title: '파이어뱃 화염 강화', desc: '모든 파이어뱃의 공격력과 범위, 연사력이 증가합니다.' },
+            { id: 'upgrade_tank', title: '탱크 포탄 강화', desc: '모든 탱크의 공격력과 공격 속도, 범위가 증가합니다.' },
+            { id: 'upgrade_ghost', title: '고스트 저격총 강화', desc: '모든 고스트의 공격력과 조준 속도가 증가합니다.' },
+            { id: 'bunker_max_hp', title: '기지 최대 체력 증가', desc: '기지의 최대 체력이 25 증가합니다.' },
+            { id: 'bunker_regen', title: '기지 자동 수리', desc: '기지의 초당 체력 재생 속도가 증가합니다.' },
+        ];
+
+        // 현재 가능한 업그레이드 목록 필터링
+        function getAvailableUpgrades() {
+            const available = [];
+            const marineCount = gameState.weapons.filter(w => w.type === 'marine').length;
+            const firebatCount = gameState.weapons.filter(w => w.type === 'firebat').length;
+            const tankCount = gameState.weapons.filter(w => w.type === 'tank').length;
+            const ghostCount = gameState.weapons.filter(w => w.type === 'ghost').length;
+
+            allUpgrades.forEach(upg => {
+                if (upg.id === 'add_marine' && marineCount < 6) available.push(upg);
+                else if (upg.id === 'add_firebat' && firebatCount < 2) available.push(upg);
+                else if (upg.id === 'add_tank' && tankCount < 2) available.push(upg);
+                else if (upg.id === 'add_ghost' && ghostCount < 2) available.push(upg);
+                else if (upg.id === 'upgrade_marine' && marineCount > 0) available.push(upg);
+                else if (upg.id === 'upgrade_firebat' && firebatCount > 0) available.push(upg);
+                else if (upg.id === 'upgrade_tank' && tankCount > 0) available.push(upg);
+                else if (upg.id === 'upgrade_ghost' && ghostCount > 0) available.push(upg);
+                else if (upg.id === 'bunker_max_hp' || upg.id === 'bunker_regen') available.push(upg);
+            });
+            
+            // 3개 랜덤 선택 (중복 없이)
+            const shuffled = available.sort(() => 0.5 - Math.random());
+            return shuffled.slice(0, 3);
+        }
+
+        // 레벨업 UI 표시
+        function showLevelUpUI() {
+            ui.upgradeContainer.innerHTML = ''; // 초기화
+            const options = getAvailableUpgrades();
+            
+            options.forEach(option => {
+                const div = document.createElement('div');
+                div.className = 'upgrade-option';
+                div.innerHTML = `<h3>${option.title}</h3><p>${option.desc}</p>`;
+                div.onclick = () => selectUpgrade(option.id);
+                ui.upgradeContainer.appendChild(div);
+            });
+
+            ui.levelUpOverlay.style.display = 'flex';
+        }
+
+        // 업그레이드 선택
+        function selectUpgrade(id) {
+            const playerBase = gameState.playerBase;
+            
+            switch (id) {
+                case 'add_marine':
+                    gameState.weapons.push(new Weapon('marine', playerBase));
+                    break;
+                case 'add_firebat':
+                    gameState.weapons.push(new Weapon('firebat', playerBase));
+                    break;
+                case 'add_tank':
+                    gameState.weapons.push(new Weapon('tank', playerBase));
+                    break;
+                case 'add_ghost':
+                    gameState.weapons.push(new Weapon('ghost', playerBase));
+                    break;
+                
+                case 'upgrade_marine':
+                    gameState.weapons.filter(w => w.type === 'marine').forEach(w => { w.level++; w.applyStats(); });
+                    break;
+                case 'upgrade_firebat':
+                     gameState.weapons.filter(w => w.type === 'firebat').forEach(w => { w.level++; w.applyStats(); });
+                    break;
+                case 'upgrade_tank':
+                     gameState.weapons.filter(w => w.type === 'tank').forEach(w => { w.level++; w.applyStats(); });
+                    break;
+                case 'upgrade_ghost':
+                     gameState.weapons.filter(w => w.type === 'ghost').forEach(w => { w.level++; w.applyStats(); });
+                    break;
+
+                case 'bunker_max_hp':
+                    playerBase.maxHp += 25;
+                    playerBase.hp += 25; // 현재 체력도 올려줌
+                    break;
+                case 'bunker_regen':
+                    playerBase.regen += 0.2;
+                    break;
+            }
+
+            updateUnitCountUI(); // 유닛 수 UI 즉시 업데이트
+            ui.levelUpOverlay.style.display = 'none';
+            gameState.isLevelUp = false;
+            pauseGame(false); // 게임 재개
+        }
+        
+        // 보유 유닛 수 UI 업데이트
+        function updateUnitCountUI() {
+            const marineCount = gameState.weapons.filter(w => w.type === 'marine').length;
+            const firebatCount = gameState.weapons.filter(w => w.type === 'firebat').length;
+            const tankCount = gameState.weapons.filter(w => w.type === 'tank').length;
+            const ghostCount = gameState.weapons.filter(w => w.type === 'ghost').length;
+
+            ui.marineCount.textContent = `🧑‍🚀 ${marineCount}`;
+            ui.firebatCount.textContent = `🔥 ${firebatCount}`;
+            ui.tankCount.textContent = `🛡️ ${tankCount}`; // 탱크 아이콘
+            ui.ghostCount.textContent = `👻 ${ghostCount}`;
+        }
+        
+        // 몬스터 정보 UI 업데이트
+        function updateMonsterInfoUI() {
+            const time = gameState.elapsedTime;
+            let info = "등장: 🐛";
+            
+            if (time > 30000) info += " 🐍"; // 30초
+            if (time > 60000) info += " 🦇"; // 1분
+            if (time > 180000) info += " 🦖 (BOSS)"; // 3분
+
+            if (info !== gameState.lastMonsterInfo) {
+                ui.monsterInfo.textContent = info;
+                gameState.lastMonsterInfo = info;
+            }
+        }
+
+
+        // 게임 스폰 로직
+        function handleSpawning(deltaTime) {
+            gameState.spawnTimer += deltaTime;
+            // 난이도 배율에 따라 스폰 간격 조절
+            const currentSpawnInterval = gameState.spawnInterval / gameState.difficultyMultiplier;
+
+            if (gameState.spawnTimer > currentSpawnInterval) {
+                gameState.spawnTimer = 0;
+                
+                // 난이도 조절 (시간이 지날수록 스폰 간격 짧아짐)
+                gameState.spawnInterval = Math.max(300, 2500 - gameState.elapsedTime / 1000 * 10); // 2500 기준으로
+                
+                let enemyType = 'zergling'; // 기본
+                const time = gameState.elapsedTime;
+                
+                if (time > 180000 && Math.random() < 0.05) { // 3분 후 울트라
+                    enemyType = 'ultra';
+                } else if (time > 60000 && Math.random() < 0.2) { // 1분 후 뮤탈
+                    enemyType = 'muta';
+                } else if (time > 30000 && Math.random() < 0.3) { // 30초 후 히드라
+                    enemyType = 'hydralisk';
+                }
+                
+                gameState.enemies.push(new Enemy(enemyType));
+            }
+        }
+
+        // 게임 시작
+        function startGame(difficulty) {
+            resizeCanvas(); // 시작할 때 캔버스 크기 맞추기
+            
+            const playerBase = new PlayerBase();
+            
+            gameState = {
+                isRunning: true,
+                isPaused: false,
+                isLevelUp: false,
+                startTime: Date.now(),
+                elapsedTime: 0,
+                lastTime: Date.now(),
+                killCount: 0,
+                playerBase: playerBase,
+                enemies: [],
+                projectiles: [],
+                effects: [], // 효과 배열 초기화
+                weapons: [new Weapon('marine', playerBase)], // 기본 마린 1기
+                spawnTimer: 0,
+                spawnInterval: 2500, // 기본 스폰 간격 (상향)
+                difficultyMultiplier: difficulty, // 선택된 난이도 배율 설정
+                lastMonsterInfo: "" // 몬스터 정보 캐시 초기화
+            };
+            
+            // UI 초기화
+            ui.startOverlay.style.display = 'none';
+            ui.gameOverOverlay.style.display = 'none';
+            ui.levelText.textContent = 'LV. 1';
+            ui.killCount.textContent = 'Kills: 0';
+            ui.timer.textContent = '00:00';
+            ui.xpFill.style.width = '0%';
+            ui.bunkerHpFill.style.width = '100%';
+            ui.monsterInfo.textContent = '등장: 🐛'; // 몬스터 정보 초기화
+            updateUnitCountUI(); // 유닛 수 초기화
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 게임 오버
+        function gameOver() {
+            gameState.isRunning = false;
+            document.getElementById('game-over-stats').textContent = `최종 생존 시간: ${formatTime(gameState.elapsedTime)} | 최종 킬 수: ${gameState.killCount}`;
+            ui.gameOverOverlay.style.display = 'flex';
+        }
+        
+        // 다시 시작 (시작 화면으로)
+        function restartGame() {
+            ui.gameOverOverlay.style.display = 'none';
+            ui.startOverlay.style.display = 'flex';
+        }
+
+        // 게임 일시정지/재개
+        function pauseGame(isPaused) {
+            gameState.isPaused = isPaused;
+            if (!isPaused) {
+                gameState.lastTime = Date.now();
+                if (!gameState.isLevelUp) {
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+        }
+
+        // 메인 게임 루프
+        function gameLoop() {
+            if (!gameState.isRunning || gameState.isPaused || gameState.isLevelUp) {
+                return;
+            }
+
+            const now = Date.now();
+            const deltaTime = now - gameState.lastTime;
+            gameState.lastTime = now;
+            
+            // 프레임 드랍 방지 (최대 100ms까지만 인정)
+            const effectiveDeltaTime = Math.min(deltaTime, 100); 
+
+            gameState.elapsedTime += effectiveDeltaTime;
+            ui.timer.textContent = formatTime(gameState.elapsedTime);
+
+            // 업데이트
+            gameState.playerBase.update(effectiveDeltaTime);
+            gameState.weapons.forEach(w => w.update(effectiveDeltaTime));
+            [...gameState.enemies].forEach(enemy => enemy.update(effectiveDeltaTime));
+            [...gameState.projectiles].forEach(p => p.update(effectiveDeltaTime));
+            [...gameState.effects].forEach(e => e.update(effectiveDeltaTime)); // 효과 업데이트
+            
+            // UI 업데이트
+            updateMonsterInfoUI();
+
+            // 스포닝
+            handleSpawning(effectiveDeltaTime);
+
+            // 그리기
+            ctx.clearRect(0, 0, width, height);
+            gameState.playerBase.draw();
+            gameState.enemies.forEach(enemy => enemy.draw());
+            gameState.projectiles.forEach(p => p.draw());
+            gameState.effects.forEach(e => e.draw()); // 효과 그리기
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 이벤트 리스너
+        window.addEventListener('resize', resizeCanvas);
+        
+        // 난이도 버튼 이벤트 리스너
+        ui.difficultyButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const difficulty = parseFloat(button.getAttribute('data-diff'));
+                startGame(difficulty);
+            });
+        });
+        
+        ui.restartButton.addEventListener('click', restartGame); // 다시 시작 버튼 수정
+
+        // 초기 캔버스 크기 설정
+        resizeCanvas();
+        
+    </script>
+<script type="module">
+  // Import the functions you need from the SDKs you need
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyD7KstdU9StWE_hU7GpnS7Gv49OEd61pAc",
+    authDomain: "scdefense-7af90.firebaseapp.com",
+    projectId: "scdefense-7af90",
+    storageBucket: "scdefense-7af90.firebasestorage.app",
+    messagingSenderId: "564891141894",
+    appId: "1:564891141894:web:c46e3b487024f13a4b4087"
+  };
+
+  // Initialize Firebase
   const app = initializeApp(firebaseConfig);
 </script>
 </body>
