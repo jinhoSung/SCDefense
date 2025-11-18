@@ -54,7 +54,7 @@
         }
 
         #top-ui, #bottom-ui {
-            padding: 15px 20px;
+            padding: 10px 15px; /* (수정) 패딩 축소 */
             background: rgba(0, 0, 0, 0.3);
             display: flex;
             justify-content: space-between;
@@ -102,8 +102,8 @@
         }
         #stats {
             display: flex;
-            gap: 20px;
-            font-size: 1.1em;
+            gap: 15px; /* (수정) 간격 축소 */
+            font-size: 1.0em; /* (수정) 폰트 크기 축소 */
             font-weight: bold;
         }
         #level-text, #kill-count, #timer {
@@ -114,8 +114,8 @@
         /* 보유 유닛 표시 */
         #unit-display {
             display: flex;
-            gap: 15px;
-            font-size: 1.2em;
+            gap: 10px; /* (수정) 간격 축소 */
+            font-size: 1.0em; /* (수정) 폰트 크기 축소 */
             font-weight: bold;
             color: #fff;
         }
@@ -132,16 +132,16 @@
         }
         .setting-btn {
             font-family: inherit;
-            font-size: 0.9em;
+            font-size: 0.8em; /* (수정) 폰트 크기 축소 */
             font-weight: bold;
-            padding: 5px 10px;
+            padding: 4px 8px; /* (수정) 패딩 축소 */
             border: none;
             border-radius: 8px;
             color: white;
             cursor: pointer;
             background-color: #555;
             transition: background-color 0.2s;
-            min-width: 80px; /* 버튼 크기 고정 */
+            min-width: 70px; /* (수정) 최소 너비 축소 */
             text-align: center;
         }
         .setting-btn:hover {
@@ -160,9 +160,9 @@
 
         .skill-btn {
             font-family: inherit;
-            font-size: 1.1em;
+            font-size: 1.0em; /* (수정) 폰트 크기 축소 */
             font-weight: bold;
-            padding: 8px 15px;
+            padding: 6px 12px; /* (수정) 패딩 축소 */
             border: none;
             border-radius: 8px;
             color: white;
@@ -170,7 +170,7 @@
             background-color: #3b82f6; /* 파란색 계열 */
             transition: all 0.2s;
             position: relative;
-            min-width: 100px;
+            min-width: 90px; /* (수정) 최소 너비 축소 */
         }
 
         .skill-btn:disabled {
@@ -223,13 +223,13 @@
             z-index: 10;
         }
         .overlay h1 {
-            font-size: 3em;
+            font-size: 2.5em; /* (수정) 폰트 크기 축소 */
             color: #fff;
             margin-bottom: 20px;
             text-shadow: 3px 3px 5px rgba(0,0,0,0.7);
         }
         .overlay p {
-            font-size: 1.2em;
+            font-size: 1.0em; /* (수정) 폰트 크기 축소 */
             color: #ddd;
             margin-bottom: 30px;
         }
@@ -245,9 +245,9 @@
         }
         .diff-button {
             font-family: inherit;
-            font-size: 1.3em;
+            font-size: 1.1em; /* (수정) 폰트 크기 축소 */
             font-weight: bold;
-            padding: 15px 20px;
+            padding: 12px 18px; /* (수정) 패딩 축소 */
             border: none;
             border-radius: 12px;
             color: white;
@@ -276,11 +276,11 @@
             flex-direction: column;
             gap: 15px;
             width: 80%;
-            max-width: 400px;
+            max-width: 360px; /* (수정) 최대 너비 축소 */
         }
         .upgrade-option {
             background: #444;
-            padding: 20px;
+            padding: 15px; /* (수정) 패딩 축소 */
             border-radius: 10px;
             border: 2px solid #555;
             cursor: pointer;
@@ -311,9 +311,9 @@
         #permanent-upgrade-container { 
             display: grid; 
             grid-template-columns: repeat(2, 1fr); /* 2열 그리드 */
-            gap: 15px;
+            gap: 10px; /* (수정) 간격 축소 */
             width: 90%; 
-            max-width: 800px; 
+            max-width: 700px; /* (수정) 최대 너비 축소 */
             margin-top: 20px;
             padding: 0 10px; /* 좌우 패딩 추가 */
         }
