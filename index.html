@@ -1,9 +1,8 @@
-<!DOCTYPE html>
-<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>벙커 디펜스</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
     <style>
         body {
             font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -12,42 +11,57 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            /* (수정) 높이와 너비를 100%로 설정하여 뷰포트 전체를 사용 */
+            height: 100%; 
+            width: 100%;
             margin: 0;
             overflow: hidden;
+            /* (추가) body 자체를 뷰포트에 고정 */
+            position: fixed; 
+            top: 0;
+            left: 0;
         }
         #game-container {
             position: relative;
+            /* (수정) 뷰포트에 꽉 차도록 100% 사용 */
             width: 100%;
             height: 100%;
-            max-width: 100vw;
-            max-height: 100vh;
-            overflow: hidden;
-            background-color: #2b2b2b; /* 어두운 배경 */
+            pointer-events: none;
         }
-        canvas {
-            display: block;
-            background-color: #333;
+
+        /* (추가) 캔버스를 배경에 꽉 채웁니다 */
+        #game-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
+            z-index: 1; /* 캔버스를 맨 뒤로 */
         }
+        
+        /* (추가) UI 컨테이너를 캔버스 위에 띄웁니다 */
         #ui-container {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            pointer-events: none;
+            pointer-events: none; /* 자식(top/bottom-ui)에서 auto로 재설정됨 */
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            z-index: 12; /* (수정) UI를 캔버스 위로, 오버레이(10)보다 높게 설정 */
         }
+
         #top-ui, #bottom-ui {
             padding: 15px 20px;
             background: rgba(0, 0, 0, 0.3);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            pointer-events: auto; /* (수정) 하위 요소가 클릭되도록 재설정 */
+            position: relative; /* (추가) z-index를 적용하기 위해 position 설정 */
+            z-index: 11; /* (추가) 오버레이(z-index: 10)보다 위에 오도록 설정 */
         }
         #top-ui {
             border-bottom: 2px solid rgba(255, 255, 255, 0.1);
@@ -111,6 +125,78 @@
             gap: 5px;
         }
 
+        /* 오디오 설정 버튼 */
+        #settings-ui {
+            display: flex;
+            gap: 10px;
+        }
+        .setting-btn {
+            font-family: inherit;
+            font-size: 0.9em;
+            font-weight: bold;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            background-color: #555;
+            transition: background-color 0.2s;
+            min-width: 80px; /* 버튼 크기 고정 */
+            text-align: center;
+        }
+        .setting-btn:hover {
+            background-color: #777;
+        }
+        .setting-btn.off {
+            background-color: #e74c3c; /* 빨간색 (Off 상태) */
+        }
+        
+        /* 스킬 패널 스타일 */
+        #skill-panel {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .skill-btn {
+            font-family: inherit;
+            font-size: 1.1em;
+            font-weight: bold;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            background-color: #3b82f6; /* 파란색 계열 */
+            transition: all 0.2s;
+            position: relative;
+            min-width: 100px;
+        }
+
+        .skill-btn:disabled {
+            cursor: not-allowed;
+            background-color: #777;
+            opacity: 0.8;
+            color: #bbb;
+        }
+        
+        .skill-cooldown {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            border-radius: 8px;
+        }
+
+
         /* 몬스터 정보 표시 */
         #monster-info {
             text-align: center;
@@ -153,7 +239,8 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
-            width: 80%;
+            /* (수정) 모바일에 유연하게 맞도록 max-width와 width를 vw 기준으로 설정 */
+            width: 80vw;
             max-width: 300px;
         }
         .diff-button {
@@ -215,16 +302,112 @@
             font-size: 0.9em;
         }
 
+        #permanent-shop-overlay {
+            display: none;
+            /* 레벨업 오버레이와 동일한 스타일을 사용 */
+        }
+
+        /* (추가/수정) 영구 상점의 Grid 레이아웃 */
+        #permanent-upgrade-container { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); /* 2열 그리드 */
+            gap: 15px;
+            width: 90%; 
+            max-width: 800px; 
+            margin-top: 20px;
+            padding: 0 10px; /* 좌우 패딩 추가 */
+        }
+
         #game-over-overlay {
             display: none; /* 평소엔 숨김 */
         }
         
         #start-overlay {
-            display: flex; /* 처음엔 보임 */
+            display: none; /* 데이터 로드 완료 후 표시됨 */
         }
+
+        #loading-overlay {
+            display: flex; /* 로딩 중 표시 */
+        }
+
 
         #level-up-overlay {
             display: none; /* 평소엔 숨김 */
+        }
+
+        /* (추가) 일시정지 오버레이 */
+        #pause-overlay {
+            display: none; /* 평소엔 숨김 */
+        }
+
+        /* --- 모바일 반응형 CSS (화면 너비 600px 이하) --- */
+        @media (max-width: 600px) {
+            #top-ui, #bottom-ui {
+                padding: 8px 10px;
+                font-size: 0.9em;
+            }
+
+            #stats {
+                gap: 5px; /* 간격 축소 */
+                font-size: 0.8em;
+            }
+
+            #unit-display {
+                gap: 5px; /* 간격 축소 */
+                font-size: 0.8em;
+            }
+
+            #settings-ui {
+                gap: 5px; /* 간격 축소 */
+            }
+
+            .setting-btn {
+                min-width: 50px; /* 버튼 최소 너비 축소 */
+                padding: 4px 6px;
+                font-size: 0.75em;
+            }
+            
+            /* 스킬 패널 조정 */
+            #skill-panel {
+                gap: 5px;
+                margin-top: 5px;
+            }
+            .skill-btn {
+                font-size: 0.8em;
+                padding: 6px 10px;
+                min-width: 80px;
+            }
+            .skill-cooldown {
+                font-size: 1.2em; /* 쿨타임 숫자 크기 유지 */
+            }
+
+            /* 상점 UI 모바일 최적화 (1열로 변경) */
+            #permanent-upgrade-container { 
+                grid-template-columns: 1fr; /* 1열 그리드 */
+                gap: 10px;
+                width: 95%; 
+            }
+            .upgrade-option {
+                padding: 15px;
+            }
+            .upgrade-option h3 {
+                font-size: 1em;
+            }
+            
+            /* (추가) 난이도 오버레이 모바일 최적화 */
+            #difficulty-select {
+                width: 90vw; /* 뷰포트 너비에 맞게 조정 */
+            }
+            .diff-button {
+                font-size: 1.1em;
+                padding: 12px 15px;
+            }
+            .overlay h1 {
+                 font-size: 2em; /* 오버레이 헤더 크기 축소 */
+            }
+            .overlay p {
+                 font-size: 1em; /* 오버레이 텍스트 크기 축소 */
+            }
         }
     </style>
 </head>
@@ -234,6 +417,7 @@
         <div id="ui-container">
             <div id="top-ui">
                 <div id="stats">
+                    <span id="money-display">💰 LOADING...</span> <!-- (추가) 머니 표시 -->
                     <span id="level-text">LV. 1</span>
                     <span id="kill-count">Kills: 0</span>
                     <span id="timer">00:00</span>
@@ -245,8 +429,28 @@
                     <span id="tank-count">🛡️ 0</span>
                     <span id="ghost-count">👻 0</span>
                 </div>
+                <!-- 오디오 설정 UI -->
+                <div id="settings-ui">
+                    <button id="permanent-shop-btn" class="setting-btn">상점 🛒</button> <!-- (추가) 상점 버튼 -->
+                    <button id="bgm-toggle" class="setting-btn">BGM: 🎵</button>
+                    <button id="sfx-toggle" class="setting-btn">SFX: 🔊</button>
+                    <!-- (추가) 일시정지 버튼 -->
+                    <button id="pause-toggle" class="setting-btn">PAUSE ⏸️</button>
+                </div>
             </div>
             <div id="bottom-ui">
+                 <!-- (이동) 스킬 패널을 맨 위로 올림 -->
+                <div id="skill-panel">
+                    <button id="skill-irradiate" class="skill-btn" disabled>
+                        이레디에잇 (300)
+                        <span id="skill-irradiate-cooldown" class="skill-cooldown" style="display:none;"></span>
+                    </button>
+                    <button id="skill-defmatrix" class="skill-btn" disabled>
+                        방어 매트릭스 (200)
+                        <span id="skill-defmatrix-cooldown" class="skill-cooldown" style="display:none;"></span>
+                    </button>
+                    <!-- AI 버튼 제거 -->
+                </div>
                 <!-- 몬스터 정보 UI -->
                 <div id="monster-info">등장: 🐛</div>
                 <div id="bunker-hp-bar">
@@ -257,6 +461,13 @@
                 </div>
             </div>
         </div>
+
+        <!-- 로딩 오버레이 (데이터베이스 로드 대기) -->
+        <div id="loading-overlay" class="overlay">
+            <h1>데이터 로드 중...</h1>
+            <p>잠시만 기다려주세요.</p>
+        </div>
+
 
         <!-- 게임 시작 오버레이 -->
         <div id="start-overlay" class="overlay">
@@ -281,15 +492,255 @@
             </div>
         </div>
 
+         <!-- (추가) 영구 상점 오버레이 -->
+         <div id="permanent-shop-overlay" class="overlay">
+            <h1>영구 업그레이드 상점</h1>
+            <p id="shop-money-info">현재 자금: 💰 0</p>
+            <div id="permanent-upgrade-container" class="upgrade-container">
+                <!-- 상점 항목이 동적으로 채워집니다. -->
+            </div>
+            <button id="close-shop-btn" class="diff-button" style="background-color: #555; margin-top: 20px;">닫기</button>
+        </div>
+
+
         <!-- 게임 오버 오버레이 -->
         <div id="game-over-overlay" class="overlay">
             <h1>게임 오버</h1>
             <p id="game-over-stats">최종 생존 시간: 00:00 | 최종 킬 수: 0</p>
             <button id="restart-button" class="diff-button" style="background-color: #4CAF50;">다시 시작</button>
         </div>
+
+        <!-- (추가) 일시정지 오버레이 -->
+        <div id="pause-overlay" class="overlay">
+            <h1>PAUSED</h1>
+            <p>게임이 일시정지되었습니다.</p>
+        </div>
+        
     </div>
 
     <script type="module">
+        // --- Firebase/Firestore 모듈 임포트 (데이터베이스 연동) ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // setLogLevel('debug'); // Firestore 디버그 로깅 활성화 (필요 시 주석 해제)
+
+        // Global variables (Mandatory to use)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        let db;
+        let auth;
+        let userId = 'loading'; // 초기 사용자 ID 상태
+
+        // 영구 사용자 데이터 상태
+        let userData = {
+            money: 0,
+            baseDamageLevel: 0, // 기본 데미지 영구 업그레이드 레벨 (0부터 시작)
+            baseHPLevel: 0,     // 기본 HP 영구 업그레이드 레벨 (0부터 시작)
+            baseRegenLevel: 0,  // (추가) 기지 재생 속도 레벨
+            initialMoneyLevel: 0, // (추가) 시작 자금 레벨
+            // (추가) 스킬 구매 상태
+            irradiateLevel: 0, // (수정) 이레디에잇 레벨 (최대 3)
+            defensiveMatrixLevel: 0, // (수정) 디펜시브 매트릭스 레벨 (최대 3)
+        };
+
+        // 영구 업그레이드 정의
+        const permanentUpgrades = {
+            baseDamage: { 
+                title: "기본 데미지 강화", 
+                costBase: 100, 
+                costMultiplier: 1.5,
+                effectPerLevel: 1.5, // 레벨당 기본 데미지 +1.5 증가
+                maxLevel: 10
+            },
+            baseHP: { 
+                title: "기지 내구도 강화", 
+                costBase: 150, 
+                costMultiplier: 1.6,
+                effectPerLevel: 25, // 레벨당 최대 HP +25 증가
+                maxLevel: 10
+            },
+            // (추가) 기지 재생 속도 업그레이드
+             baseRegen: {
+                title: "기지 재생 속도",
+                costBase: 120,
+                costMultiplier: 1.4,
+                effectPerLevel: 0.1, // 레벨당 초당 HP 재생 +0.1 증가
+                maxLevel: 15
+            },
+            // (추가) 시작 자금 업그레이드
+            initialMoney: {
+                title: "시작 자금 증가",
+                costBase: 200,
+                costMultiplier: 1.8,
+                effectPerLevel: 50, // 레벨당 시작 자금 +50 증가
+                maxLevel: 5
+            },
+            // (추가) 스킬 구매/레벨업 업그레이드
+            buyIrradiate: {
+                title: "스킬: 이레디에잇",
+                costBase: 1000, // (수정) 가격 1000
+                costMultiplier: 1.5, // (수정) 레벨당 1.5배 증가
+                effectPerLevel: 0, // (수정) 명시적으로 0 설정
+                maxLevel: 3, // (수정) 최대 3레벨
+            },
+            buyDefensiveMatrix: {
+                title: "스킬: 방어 매트릭스",
+                costBase: 800, // (수정) 가격 800
+                costMultiplier: 1.5, // (수정) 레벨당 1.5배 증가
+                effectPerLevel: 0, // (수정) 명시적으로 0 설정
+                maxLevel: 3, // (수정) 최대 3레벨
+            }
+        };
+
+        // 액티브 스킬 데이터 (레벨별 효과 계산을 위한 기본값)
+        const SKILL_DATA_BASE = {
+            irradiate: {
+                cooldown: 50000, // 기본 50s
+                duration: 5000, // 기본 5s
+                dotDamage: 2,
+                radius: 400, 
+                emoji: '☢️', 
+                cooldownDecreasePerLevel: 5000, // 레벨당 5초 감소
+                durationIncreasePerLevel: 1000 // 레벨당 1초 증가
+            },
+            defensivematrix: { // (수정) defensiveMatrix -> defensivematrix 로 소문자 통일
+                cooldown: 70000, // 기본 70s
+                duration: 8000, // 기본 8s
+                damageCap: 1, 
+                emoji: '🌐',
+                cooldownDecreasePerLevel: 5000, // 레벨당 5초 감소
+                durationIncreasePerLevel: 2000 // 레벨당 2초 증가
+            }
+        };
+        
+        // 스킬 데이터 (실제 게임에서 사용될, 레벨이 적용된 값)
+        let SKILL_DATA = {}; 
+        
+        // 스킬 레벨에 따른 효과 계산 함수 (초기 로드 시 및 업그레이드 시 호출)
+        function calculateSkillStats() {
+            // 이레디에잇
+            const iLvl = userData.irradiateLevel;
+            SKILL_DATA.irradiate = {
+                ...SKILL_DATA_BASE.irradiate,
+                cooldown: Math.max(10000, SKILL_DATA_BASE.irradiate.cooldown - (iLvl * SKILL_DATA_BASE.irradiate.cooldownDecreasePerLevel)),
+                duration: SKILL_DATA_BASE.irradiate.duration + (iLvl * SKILL_DATA_BASE.irradiate.durationIncreasePerLevel),
+                cost: permanentUpgrades.buyIrradiate.costBase // 상점 UI용
+            };
+            
+            // 디펜시브 매트릭스
+            const dLvl = userData.defensiveMatrixLevel;
+            SKILL_DATA.defensivematrix = {
+                ...SKILL_DATA_BASE.defensivematrix, // (수정) 소문자 키로 참조
+                cooldown: Math.max(10000, SKILL_DATA_BASE.defensivematrix.cooldown - (dLvl * SKILL_DATA_BASE.defensivematrix.cooldownDecreasePerLevel)), // (수정) 소문자 키로 참조
+                duration: SKILL_DATA_BASE.defensivematrix.duration + (dLvl * SKILL_DATA_BASE.defensivematrix.durationIncreasePerLevel), // (수정) 소문자 키로 참조
+                cost: permanentUpgrades.buyDefensiveMatrix.costBase // 상점 UI용
+            };
+            
+            // 스킬 버튼 텍스트 업데이트
+            ui.skillIrradiate.textContent = `이레디에잇 (${Math.ceil(SKILL_DATA.irradiate.cooldown / 1000)}s)`;
+            ui.skillDefMatrix.textContent = `방어 매트릭스 (${Math.ceil(SKILL_DATA.defensivematrix.cooldown / 1000)}s)`;
+
+            console.log("Skill Stats Recalculated:", SKILL_DATA);
+        }
+        
+        // Firebase 초기화 및 인증
+        async function initFirebase() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Custom Token 인증 또는 익명 인증
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                
+                // 인증된 사용자 ID 설정
+                userId = auth.currentUser.uid;
+                console.log("Firebase Auth Success. User ID:", userId);
+                
+                // 데이터 로드
+                await loadUserData();
+                
+            } catch (error) {
+                console.error("Firebase 초기화 또는 인증 실패:", error);
+                // 오류 발생 시 기본값으로 진행
+                userId = 'guest'; 
+                calculateSkillStats(); // 스킬 계산 (기본 레벨 0)
+                updateMoneyDisplay();
+            }
+        }
+
+        // Firestore에서 사용자 데이터 로드
+        async function loadUserData() {
+            if (userId === 'guest') return;
+            
+            const docRef = doc(db, `artifacts/${appId}/users/${userId}/game_data/upgrades_doc`);
+            
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    userData.money = Number(data.money) || 0; // (수정) 로드 시 Number로 변환
+                    userData.baseDamageLevel = Number(data.baseDamageLevel) || 0; // (수정) 로드 시 Number로 변환
+                    userData.baseHPLevel = Number(data.baseHPLevel) || 0;     // (수정) 로드 시 Number로 변환
+                    userData.baseRegenLevel = Number(data.baseRegenLevel) || 0;  // (수정) 로드 시 Number로 변환
+                    userData.initialMoneyLevel = Number(data.initialMoneyLevel) || 0; // (수정) 로드 시 Number로 변환
+                    userData.irradiateLevel = Number(data.irradiateLevel) || 0; // (수정) 로드 시 Number로 변환
+                    userData.defensiveMatrixLevel = Number(data.defensiveMatrixLevel) || 0; // (수정) 로드 시 Number로 변환
+
+                    console.log("User Data Loaded:", userData);
+                } else {
+                    // 문서가 없으면 새로 생성 (초기값 저장)
+                    await saveUserData(true);
+                    console.log("New User Data Document Created.");
+                }
+            } catch (e) {
+                console.error("User Data Load Failed:", e);
+            }
+            calculateSkillStats(); // 데이터 로드 후 스킬 스탯 계산
+            updateMoneyDisplay(); // 로드 후 머니 UI 업데이트
+        }
+
+        // Firestore에 사용자 데이터 저장 (업그레이드 및 돈)
+        async function saveUserData(isInitial = false) {
+            if (userId === 'guest') return;
+            
+            const docRef = doc(db, `artifacts/${appId}/users/${userId}/game_data/upgrades_doc`);
+            
+            try {
+                const dataToSave = {
+                    money: userData.money,
+                    baseDamageLevel: userData.baseDamageLevel,
+                    baseHPLevel: userData.baseHPLevel,
+                    baseRegenLevel: userData.baseRegenLevel,    
+                    initialMoneyLevel: userData.initialMoneyLevel, 
+                    irradiateLevel: userData.irradiateLevel, // (수정) 레벨 저장
+                    defensiveMatrixLevel: userData.defensiveMatrixLevel, // (수정) 레벨 저장
+                    lastUpdated: Date.now()
+                };
+                
+                if (isInitial) {
+                    await setDoc(docRef, dataToSave);
+                } else {
+                    // 데이터베이스 호출 최소화를 위해 updateDoc 사용 (필요한 경우 setDoc으로 대체 가능)
+                    await updateDoc(docRef, dataToSave); 
+                }
+                console.log("User Data Saved.");
+            } catch (e) {
+                console.error("User Data Save Failed:", e);
+            }
+        }
+        // --- Firebase/Firestore 로직 끝 ---
+
+
         // 모듈 상단에 주요 변수 선언
         const canvas = document.getElementById('game-canvas');
         const ctx = canvas.getContext('2d');
@@ -314,12 +765,33 @@
             tankCount: document.getElementById('tank-count'),
             ghostCount: document.getElementById('ghost-count'),
             monsterInfo: document.getElementById('monster-info'),
+            // 오디오 토글 버튼 추가
+            bgmToggle: document.getElementById('bgm-toggle'),
+            sfxToggle: document.getElementById('sfx-toggle'),
+            // (추가) 일시정지 UI
+            pauseOverlay: document.getElementById('pause-overlay'),
+            pauseToggle: document.getElementById('pause-toggle'),
+            // (추가) 머니 UI
+            moneyDisplay: document.getElementById('money-display'),
+            // (추가) 상점 UI
+            permanentShopBtn: document.getElementById('permanent-shop-btn'),
+            permanentShopOverlay: document.getElementById('permanent-shop-overlay'),
+            shopMoneyInfo: document.getElementById('shop-money-info'),
+            permanentUpgradeContainer: document.getElementById('permanent-upgrade-container'),
+            closeShopBtn: document.getElementById('close-shop-btn'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            // (추가) 스킬 UI
+            skillIrradiate: document.getElementById('skill-irradiate'),
+            skillDefMatrix: document.getElementById('skill-defmatrix'),
+            skillIrradiateCooldown: document.getElementById('skill-irradiate-cooldown'),
+            skillDefMatrixCooldown: document.getElementById('skill-defmatrix-cooldown'),
         };
 
         let gameState = {
             isRunning: false,
-            isPaused: false,
+            isPaused: false, // 레벨업 시 내부 일시정지
             isLevelUp: false,
+            isUserPaused: false, // (추가) 사용자 일시정지
             startTime: 0,
             elapsedTime: 0, // 총 게임 시간 (밀리초)
             lastTime: 0,
@@ -332,16 +804,29 @@
             spawnTimer: 0,
             spawnInterval: 2500, // 2.5초마다 스폰 (초반 난이도 하향)
             difficultyMultiplier: 1.0, // 난이도 배율
-            lastMonsterInfo: "" // 몬스터 정보 캐시
+            lastMonsterInfo: "", // 몬스터 정보 캐시
+            // 오디오 상태 추가
+            isBgmOn: true,
+            isSfxOn: true,
+            // (추가) 스킬 상태 관리
+            skills: {
+                irradiate: {
+                    lastUseTime: 0,
+                    isActive: false,
+                    durationRemaining: 0,
+                },
+                defensivematrix: {
+                    lastUseTime: 0,
+                    isActive: false,
+                    durationRemaining: 0,
+                }
+            }
         };
+        
+        // 오디오 관련 변수
+        let isAudioInitialized = false;
+        let sounds = {};
 
-        // 유틸리티 함수
-        function formatTime(ms) {
-            const totalSeconds = Math.floor(ms / 1000);
-            const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
-            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-            return `${minutes}:${seconds}`;
-        }
 
         // 캔버스 크기 조절
         function resizeCanvas() {
@@ -354,6 +839,180 @@
             }
         }
         
+        // (추가) 두 오브젝트 간의 거리 계산 함수
+        function distance(obj1, obj2) {
+            const dx = obj1.x - obj2.x;
+            const dy = obj1.y - obj2.y;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+
+        // 유틸리티 함수
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+            return `${minutes}:${seconds}`;
+        }
+
+        // 머니 UI 업데이트
+        function updateMoneyDisplay() {
+            ui.moneyDisplay.textContent = `💰 ${userData.money.toLocaleString()}`;
+        }
+        
+        // 오디오 초기화 (사용자 상호작용 후 호출)
+        function initAudio() {
+            if (isAudioInitialized) return;
+            
+            try {
+                // ... 기존 사운드 정의 ...
+                sounds.marineSynth = new Tone.NoiseSynth({
+                    noise: { type: 'white' },
+                    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }
+                }).toDestination();
+                // (수정) gameState.isSfxOn 상태에 따라 초기 볼륨 설정
+                sounds.marineSynth.volume.value = gameState.isSfxOn ? 0 : -Infinity;
+                
+                sounds.firebatSynth = new Tone.NoiseSynth({
+                    noise: { type: 'pink' },
+                    envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.1 },
+                    filter: { type: 'lowpass', Q: 2, frequency: 1000 },
+                    filterEnvelope: { attack: 0.02, decay: 0.1, sustain: 0, release: 0.05, baseFrequency: 500, octaves: 2 }
+                }).toDestination();
+                // (수정) gameState.isSfxOn 상태에 따라 초기 볼륨 설정
+                sounds.firebatSynth.volume.value = gameState.isSfxOn ? 0 : -Infinity;
+                
+                sounds.tankSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 10,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' }
+                }).toDestination();
+                // (수정) gameState.isSfxOn 상태에 따라 초기 볼륨 설정
+                sounds.tankSynth.volume.value = gameState.isSfxOn ? -10 : -Infinity;
+
+                sounds.ghostSynth = new Tone.FMSynth({
+                    harmonicity: 3,
+                    modulationIndex: 10,
+                    detune: 0,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.001, decay: 0.1, sustain: 0.01, release: 0.2 },
+                    modulation: { type: 'square' },
+                    modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
+                }).toDestination();
+                // (수정) gameState.isSfxOn 상태에 따라 초기 볼륨 설정
+                sounds.ghostSynth.volume.value = gameState.isSfxOn ? -10 : -Infinity;
+
+                sounds.enemyHitSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.01,
+                    octaves: 5,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.1 }
+                }).toDestination();
+                // (수정) gameState.isSfxOn 상태에 따라 초기 볼륨 설정
+                sounds.enemyHitSynth.volume.value = gameState.isSfxOn ? -5 : -Infinity;
+
+                // --- 배경음악(BGM) 추가 ---
+                
+                // (추가) 시네마틱 효과를 위한 리버브
+                const reverb = new Tone.Reverb({
+                    decay: 4,
+                    wet: 0.3
+                }).toDestination();
+
+                // (수정) BGM 신디사이저를 웅장한 패드(AMSynth)로 변경
+                // (새 수정) MP3 느낌을 위해 웅장한 패드 + 드럼으로 변경
+                sounds.bgmSynth = new Tone.PolySynth(Tone.AMSynth, {
+                    oscillator: { type: 'fatsawtooth' }, // 웅장한 패드 사운드
+                    envelope: { attack: 1.5, decay: 0.5, sustain: 0.3, release: 1.0 }
+                }).connect(reverb); // 리버브에 연결
+                
+                // (새 수정) 볼륨 +10dB로 설정
+                sounds.bgmSynth.volume.value = gameState.isBgmOn ? +10 : -Infinity; 
+
+                // (추가) 시네마틱 드럼 (쿵 울리는 소리)
+                sounds.bgmDrum = new Tone.MembraneSynth({
+                    pitchDecay: 0.1,
+                    octaves: 2,
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 0.01, decay: 0.5, sustain: 0.01, release: 0.5 }
+                }).connect(reverb);
+                // (수정) 드럼 볼륨도 +10dB로 설정
+                sounds.bgmDrum.volume.value = gameState.isBgmOn ? +10 : -Infinity; 
+
+
+                // (새 수정) 웅장한 1마디 패턴으로 변경
+                const bgmPattern = [
+                    "C2", "G1", "F1", "A1" // 느린 코드 진행
+                ];
+                let patternIndex = 0;
+
+                sounds.bgmLoop = new Tone.Loop(time => {
+                    let note = bgmPattern[patternIndex % bgmPattern.length];
+                    // (수정) 1마디(1m) 길이로 웅장하게 재생
+                    sounds.bgmSynth.triggerAttackRelease(note, "1m", time); 
+                    
+                    // (추가) 1마디에 한 번씩 드럼 울림
+                     sounds.bgmDrum.triggerAttackRelease("C1", "1n", time);
+                    
+                    patternIndex++;
+                }, "1m"); // (수정) 1마디(1m) 간격으로 루프
+
+                // BGM 재생 시작
+                sounds.bgmLoop.start(0);
+                // (새 수정) Transport를 여기서 즉시 시작하고, 볼륨으로만 제어합니다.
+                Tone.Transport.start();
+                // --- BGM 추가 완료 ---
+
+                isAudioInitialized = true;
+                console.log("오디오가 성공적으로 초기화되었습니다.");
+            } catch (e) {
+                console.error("오디오 초기화 실패:", e);
+            }
+        }
+        
+        // (추가) 플로팅 텍스트 클래스
+        class FloatingText {
+            constructor(x, y, text, color = '#FFFFFF', size = 18, vy = -0.5, duration = 800) {
+                this.x = x;
+                this.y = y;
+                this.text = text;
+                this.color = color;
+                this.size = size;
+                this.vy = vy;
+                this.duration = duration;
+                this.createdAt = Date.now();
+                this.alpha = 1.0;
+            }
+
+            update(deltaTime) {
+                const elapsed = Date.now() - this.createdAt;
+                this.y += this.vy * (deltaTime / 16); // 16ms 기준 속도 보정
+                this.alpha = 1.0 - (elapsed / this.duration); // 투명도 감소
+
+                if (this.alpha <= 0) {
+                    this.remove();
+                }
+            }
+
+            draw() {
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.font = `bold ${this.size}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.globalAlpha = 1.0; // 복원
+            }
+
+            remove() {
+                const index = gameState.effects.indexOf(this);
+                if (index > -1) {
+                    gameState.effects.splice(index, 1);
+                }
+            }
+        }
+
         // 시각 효과 클래스 (폭발, 화염 등)
         class Effect {
             constructor(x, y, emoji, size, duration = 300) {
@@ -396,24 +1055,63 @@
                 this.y = height / 2;
                 this.radius = 35; // 충돌 반경
                 this.color = '#8B4513'; // 갈색 (울타리색)
-                this.maxHp = 100;
+                
+                // (수정) 영구 업그레이드 스탯 적용
+                const hpBonus = userData.baseHPLevel * permanentUpgrades.baseHP.effectPerLevel;
+                const regenBonus = userData.baseRegenLevel * permanentUpgrades.baseRegen.effectPerLevel; // (추가) 재생 업글 적용
+
+                this.maxHp = 100 + hpBonus;
                 this.hp = this.maxHp;
                 this.level = 1;
                 this.xp = 0;
                 this.xpToNextLevel = 10;
-                this.regen = 0.1; // 초당 체력 0.1 회복
+                this.regen = 0.1 + regenBonus; // 초당 체력 0.1 + 재생 업글 적용
             }
 
             draw() {
-                ctx.fillStyle = this.color;
-                const fenceWidth = 10;
-                const fenceLength = 40;
+                const size = this.radius * 2;
+                const halfSize = this.radius;
+                const x = this.x;
+                const y = this.y;
                 
-                // 울타리 모양 그리기 (4방향)
-                ctx.fillRect(this.x - fenceLength / 2, this.y - this.radius, fenceLength, fenceWidth);
-                ctx.fillRect(this.x - fenceLength / 2, this.y + this.radius - fenceWidth, fenceLength, fenceWidth);
-                ctx.fillRect(this.x - this.radius, this.y - fenceLength / 2, fenceWidth, fenceLength);
-                ctx.fillRect(this.x + this.radius - fenceWidth, this.y - fenceLength / 2, fenceWidth, fenceLength);
+                // 1. 벙커 하단 플랫폼 (어두운 회색)
+                ctx.fillStyle = '#444444';
+                ctx.beginPath();
+                ctx.moveTo(x, y - halfSize);
+                ctx.lineTo(x + halfSize, y);
+                ctx.lineTo(x, y + halfSize);
+                ctx.lineTo(x - halfSize, y);
+                ctx.closePath();
+                ctx.fill();
+
+                // 2. 벙커 본체 (밝은 회색)
+                ctx.fillStyle = '#AAAAAA';
+                ctx.beginPath();
+                ctx.moveTo(x, y - halfSize * 0.8);
+                ctx.lineTo(x + halfSize * 0.8, y);
+                ctx.lineTo(x, y + halfSize * 0.8);
+                ctx.lineTo(x - halfSize * 0.8, y);
+                ctx.closePath();
+                ctx.fill();
+                
+                // 3. 벙커 중앙 돔 (진한 회색)
+                ctx.fillStyle = '#666666';
+                ctx.beginPath();
+                ctx.arc(x, y, halfSize * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 4. 출구/입구 (빨간색 디테일)
+                ctx.fillStyle = '#FF0000';
+                ctx.fillRect(x - halfSize * 0.1, y - halfSize * 0.9, halfSize * 0.2, halfSize * 0.1);
+                ctx.fillRect(x - halfSize * 0.1, y + halfSize * 0.8, halfSize * 0.2, halfSize * 0.1);
+                ctx.fillRect(x - halfSize * 0.9, y - halfSize * 0.1, halfSize * 0.1, halfSize * 0.2);
+                ctx.fillRect(x + halfSize * 0.8, y - halfSize * 0.1, halfSize * 0.1, halfSize * 0.2);
+                
+                // 5. HP/MP 바를 위해 중앙에 작은 원 표시
+                ctx.fillStyle = '#1a1a1a';
+                ctx.beginPath(); 
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
             }
 
             update(deltaTime) {
@@ -427,7 +1125,24 @@
             }
 
             takeDamage(amount) {
-                this.hp -= amount;
+                let damageTaken = amount;
+
+                // (추가) 디펜시브 매트릭스 적용
+                if (gameState.skills.defensivematrix.isActive) {
+                    damageTaken = SKILL_DATA.defensivematrix.damageCap; // 1 데미지로 고정
+                    // (추가) 방어 효과 텍스트
+                    gameState.effects.push(new FloatingText(
+                        this.x + (Math.random() * 20 - 10), 
+                        this.y - this.radius - 20, 
+                        'SHIELD!', 
+                        '#00BFFF', // 파란색
+                        20, 
+                        -1.0, 
+                        1000
+                    ));
+                }
+
+                this.hp -= damageTaken;
                 if (this.hp <= 0) {
                     this.hp = 0;
                     gameOver();
@@ -461,35 +1176,26 @@
         }
 
         // 무기 클래스 (마린, 파이어뱃, 탱크, 고스트)
-        class Weapon {
+        class BunkerWeapon { // (수정) UnitWeapon -> BunkerWeapon으로 클래스 이름 변경
             constructor(type, owner) {
                 this.type = type;
                 this.owner = owner;
                 this.level = 1;
-                this.lastShotTime = 0;
+                this.lastShotTime = Date.now() - (Math.random() * 200);
                 
-                // 타입별 기본 스탯 (사정거리, 공속 수정)
+                // 타입별 고유 스탯 (레벨업으로 변하지 않는 것)
                 if (type === 'marine') {
-                    this.range = 300; // 상향
-                    this.attackSpeed = 900; // 상향
-                    this.damage = 8;
                     this.projectileSpeed = 8;
                 } else if (type === 'firebat') {
-                    this.range = 120; // 상향 (이제 이게 AOE 범위)
-                    this.attackSpeed = 1300; // 상향
-                    this.damage = 10;
-                    // projectileSpeed 제거
+                    // 고유 스탯 없음 (사거리/공속/데미지 모두 applyStats에서)
                 } else if (type === 'tank') {
-                    this.range = 550; // 상향 (최장 사거리)
-                    this.attackSpeed = 2800; // 상향
-                    this.damage = 30; // 스플래시 데미지
-                    this.aoeRadius = 70; // 상향 (스플래시 범위)
+                    // this.aoeRadius 는 applyStats에서 관리
                 } else if (type === 'ghost') {
-                    this.range = 450; // 상향 (2번째 사거리)
-                    this.attackSpeed = 3500; // 상향
-                    this.damage = 50; // 강력한 한방
                     this.projectileSpeed = 20; // 빠름
                 }
+                
+                // 생성자에서 applyStats()를 호출하여 초기 스탯 설정
+                this.applyStats();
             }
 
             update(deltaTime) {
@@ -506,84 +1212,107 @@
                         let target; // 탱크, 고스트, 마린은 타겟이 필요
                         
                         if (this.type === 'firebat') {
-                            // 파이어뱃은 타겟 없이 그냥 발사
+                            // 파이어뱃은 타겟 없이 그냥 발사 (광역 공격)
                             this.shoot(null, targetsInRange); // 범위 내 모든 적을 전달
                         } else {
-                            // 나머지 유닛들
-                            if (this.type === 'ghost') {
-                                // 고스트: 체력이 가장 많은 적 우선 타겟
-                                targetsInRange.sort((a, b) => b.hp - a.hp);
-                                target = targetsInRange[0];
-                            } else {
-                                // 마린, 탱크: 사정거리 내 랜덤 타겟 (오버킬 방지)
-                                target = targetsInRange[Math.floor(Math.random() * targetsInRange.length)];
-                            }
+                            // 마린, 탱크, 고스트: 사정거리 내 랜덤 타겟 (분산 공격)
+                            // (수정) 모든 유닛이 사거리 내에서 랜덤 대상을 공격하도록 변경
+                            target = targetsInRange[Math.floor(Math.random() * targetsInRange.length)];
                             this.shoot(target);
                         }
-                        this.lastShotTime = now;
+                        this.lastShotTime = now + (Math.random() * 50);
                     }
                 }
             }
 
             shoot(target, targetsInRange = []) { // 파이어뱃을 위해 targetsInRange 추가
-                if (this.type === 'tank') {
-                    // 탱크: 즉발 폭발 및 범위 데미지
-                    gameState.effects.push(new Effect(target.x, target.y, '💥', 60)); // 폭발 크기 60
-                    
-                    // 범위 데미지
-                    gameState.enemies.forEach(otherEnemy => {
-                        const dxSplash = target.x - otherEnemy.x;
-                        const dySplash = target.y - otherEnemy.y;
-                        if (Math.sqrt(dxSplash * dxSplash + dySplash * dySplash) < this.aoeRadius) {
-                            otherEnemy.takeDamage(this.damage); // 100% 범위 데미지
+                // (수정) Tone.js 동시 재생 오류 방지를 위한 작은 랜덤 오프셋과 shootTime 정의
+                const shootTime = Tone.now(); // Tone.now() 사용
+                
+                try { // (추가) Tone.js 오류 방지를 위한 try-catch 블록
+                    if (this.type === 'tank') {
+                        // 탱크: 즉발 폭발 및 범위 데미지
+                        gameState.effects.push(new Effect(target.x, target.y, '💥', 60)); // 폭발 크기 60
+                        // (수정) shootTime 사용
+                        if (isAudioInitialized) sounds.tankSynth.triggerAttackRelease("C1", "0.5", shootTime); 
+                        
+                        // 범위 데미지
+                        gameState.enemies.forEach(otherEnemy => {
+                            const dxSplash = target.x - otherEnemy.x;
+                            const dySplash = otherEnemy.y - otherEnemy.y;
+                            if (Math.sqrt(dxSplash * dxSplash + dySplash * dySplash) < this.aoeRadius) {
+                                otherEnemy.takeDamage(this.damage); // 100% 범위 데미지
+                            }
+                        });
+
+                    } else if (this.type === 'firebat') {
+                        // 파이어뱃: 즉발 근거리 범위 데미지 (투사체 없음)
+                        // targetsInRange (이미 사정거리 내에 있는 적들)을 바로 공격
+                        gameState.effects.push(new Effect(this.owner.x, this.owner.y, '🔥', this.range * 2, 200)); // 화염 크기 = 사거리*2, 0.2초간 지속
+                        // (수정) shootTime 사용
+                        if (isAudioInitialized) sounds.firebatSynth.triggerAttackRelease("0.1", shootTime);
+                        targetsInRange.forEach(enemy => {
+                            enemy.takeDamage(this.damage);
+                        });
+
+                    } else {
+                        // 마린, 고스트: 투사체 발사
+                        const dx = target.x - this.owner.x;
+                        const dy = target.y - this.owner.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        const velocityX = (dx / dist) * this.projectileSpeed;
+                        const velocityY = (dy / dist) * this.projectileSpeed;
+                        
+                        // 사운드 재생 (isSfxOn 체크는 toggleSFX에서 볼륨으로 하므로 여기선 필요 없음)
+                        if (isAudioInitialized) {
+                            if (this.type === 'marine') {
+                                // (수정) shootTime 사용
+                                sounds.marineSynth.triggerAttackRelease("0.05", shootTime);
+                            } else if (this.type === 'ghost') {
+                                // (수정) shootTime 사용
+                                sounds.ghostSynth.triggerAttackRelease("C4", "0.1", shootTime);
+                            }
                         }
-                    });
 
-                } else if (this.type === 'firebat') {
-                    // 파이어뱃: 즉발 근거리 범위 데미지 (투사체 없음)
-                    // targetsInRange (이미 사정거리 내에 있는 적들)을 바로 공격
-                    gameState.effects.push(new Effect(this.owner.x, this.owner.y, '🔥', this.range * 2, 200)); // 화염 크기 = 사거리*2, 0.2초간 지속
-                    targetsInRange.forEach(enemy => {
-                        enemy.takeDamage(this.damage);
-                    });
-
-                } else {
-                    // 마린, 고스트: 투사체 발사
-                    const dx = target.x - this.owner.x;
-                    const dy = target.y - this.owner.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    const velocityX = (dx / dist) * this.projectileSpeed;
-                    const velocityY = (dy / dist) * this.projectileSpeed;
-
-                    gameState.projectiles.push(new Projectile(
-                        this.owner.x,
-                        this.owner.y,
-                        velocityX,
-                        velocityY,
-                        this.damage,
-                        this.type
-                    ));
+                        gameState.projectiles.push(new Projectile(
+                            this.owner.x,
+                            this.owner.y,
+                            velocityX,
+                            velocityY,
+                            this.damage,
+                            this.type
+                        ));
+                    }
+                } catch (e) {
+                    // console.warn("사운드 재생 오류 방지됨 (시간 충돌):", e.message); // 디버깅용
                 }
             }
 
             applyStats() {
+                // (수정) 영구 업그레이드 스탯 적용
+                const damageBonus = userData.baseDamageLevel * permanentUpgrades.baseDamage.effectPerLevel;
+
                 // 레벨업 스탯 적용 (공속 상향 반영)
                 const levelBonus = this.level - 1;
                 if (this.type === 'marine') {
-                    this.damage = 8 + levelBonus * 2;
-                    this.attackSpeed = Math.max(150, 900 - levelBonus * 60); // 공속 업그레이드 상향
+                    this.damage = (4 + damageBonus) + levelBonus * 2; // 기본 4 + 영구 보너스
+                    this.attackSpeed = Math.max(150, 600 - levelBonus * 50); // 기본 600ms
+                    this.range = 300 + levelBonus * 15; // 기본 300
                 } else if (this.type === 'firebat') {
-                    this.damage = 10 + levelBonus * 3;
-                    this.range = 120 + levelBonus * 10; // 범위 증가
-                    this.attackSpeed = Math.max(300, 1300 - levelBonus * 80);
+                    this.damage = (7 + damageBonus) + levelBonus * 3; // (수정) 기본 7 + 영구 보너스
+                    this.range = 120 + levelBonus * 10; // 기본 120
+                    this.attackSpeed = Math.max(300, 1300 - levelBonus * 80); // 기본 1300
                 } else if (this.type === 'tank') {
-                    this.damage = 30 + levelBonus * 5;
-                    this.attackSpeed = Math.max(800, 2800 - levelBonus * 150);
-                    this.aoeRadius = 70 + levelBonus * 10; // 범위 증가 상향
-                } else if (type === 'ghost') {
-                    this.damage = 50 + levelBonus * 10;
-                    this.attackSpeed = Math.max(1000, 3500 - levelBonus * 250);
+                    this.damage = (30 + damageBonus) + levelBonus * 5;
+                    this.attackSpeed = Math.max(800, 2800 - levelBonus * 150); // 기본 2800
+                    this.range = 550 + levelBonus * 20; // 기본 550
+                    // (수정) 스플래시 범위 강화 (70 -> 100, 레벨당 +15)
+                    this.aoeRadius = 100 + levelBonus * 15; // 기본 100으로 증가
+                } else if (this.type === 'ghost') { // 'type' -> 'this.type'
+                    this.damage = (50 + damageBonus) + levelBonus * 10;
+                    this.attackSpeed = Math.max(1000, 3500 - levelBonus * 250); // 기본 3500
+                    this.range = 450 + levelBonus * 15; // 기본 450
                 }
             }
         }
@@ -657,45 +1386,57 @@
             constructor(type) {
                 this.type = type;
                 this.isAttacking = false;
-                this.attackCooldown = 1000; // 1초마다 공격
                 this.lastAttackTime = 0;
-                const diff = gameState.difficultyMultiplier; // 난이도 배율 적용
-
-                // 스폰 위치 (화면 가장자리)
+                this.attackCooldown = 1500; // 1.5초
+                
+                // 스폰 위치 (화면 밖)
                 const spawnSide = Math.floor(Math.random() * 4);
-                if (spawnSide === 0) { this.x = Math.random() * width; this.y = -20; }
-                else if (spawnSide === 1) { this.x = width + 20; this.y = Math.random() * height; }
-                else if (spawnSide === 2) { this.x = Math.random() * width; this.y = height + 20; }
-                else { this.x = -20; this.y = Math.random() * height; }
-
+                if (spawnSide === 0) { // Top
+                    this.x = Math.random() * width;
+                    this.y = -30;
+                } else if (spawnSide === 1) { // Right
+                    this.x = width + 30;
+                    this.y = Math.random() * height;
+                } else if (spawnSide === 2) { // Bottom
+                    this.x = Math.random() * width;
+                    this.y = height + 30;
+                } else { // Left
+                    this.x = -30;
+                    this.y = Math.random() * height;
+                }
+                
                 // 타입별 스탯 (난이도 배율 적용)
                 if (type === 'zergling') {
-                    this.radius = 12;
-                    this.speed = 1.5 + Math.random() * 0.5;
-                    this.maxHp = Math.ceil(5 * diff);
-                    this.damage = Math.ceil(1 * diff);
-                    this.xpValue = Math.max(1, Math.ceil(1 / (diff * 0.5 + 0.5))); // 난이도 높을수록 경험치 감소 (조정)
+                    this.radius = 8; // 12 -> 8 (크기 감소)
+                    this.speed = 1.0 + Math.random() * 0.3; // 1.5 -> 1.0 (속도 감소)
+                    this.maxHp = Math.ceil(5 * gameState.difficultyMultiplier);
+                    this.damage = Math.ceil(1 * gameState.difficultyMultiplier);
+                    this.xpValue = Math.max(1, Math.ceil(1 / (gameState.difficultyMultiplier * 0.5 + 0.5))); 
+                    this.moneyValue = Math.ceil(2 * gameState.difficultyMultiplier); // (추가) 돈 획득
                     this.emoji = '🐛';
                 } else if (type === 'hydralisk') {
-                    this.radius = 16;
-                    this.speed = 1.0 + Math.random() * 0.3;
-                    this.maxHp = Math.ceil(15 * diff);
-                    this.damage = Math.ceil(3 * diff);
-                    this.xpValue = Math.max(1, Math.ceil(3 / (diff * 0.5 + 0.5)));
+                    this.radius = 11; // 16 -> 11 (크기 감소)
+                    this.speed = 0.7 + Math.random() * 0.2; // 1.0 -> 0.7 (속도 감소)
+                    this.maxHp = Math.ceil(15 * gameState.difficultyMultiplier);
+                    this.damage = Math.ceil(3 * gameState.difficultyMultiplier);
+                    this.xpValue = Math.max(1, Math.ceil(3 / (gameState.difficultyMultiplier * 0.5 + 0.5)));
+                    this.moneyValue = Math.ceil(5 * gameState.difficultyMultiplier); // (추가) 돈 획득
                     this.emoji = '🐍';
                 } else if (type === 'muta') {
-                    this.radius = 10;
-                    this.speed = 2.5 + Math.random() * 0.5; // 빠름
-                    this.maxHp = Math.ceil(4 * diff);
-                    this.damage = Math.ceil(1 * diff);
-                    this.xpValue = Math.max(1, Math.ceil(1 / (diff * 0.5 + 0.5)));
+                    this.radius = 7; // 10 -> 7 (크기 감소)
+                    this.speed = 1.8 + Math.random() * 0.4; // 2.5 -> 1.8 (속도 감소)
+                    this.maxHp = Math.ceil(4 * gameState.difficultyMultiplier);
+                    this.damage = Math.ceil(1 * gameState.difficultyMultiplier);
+                    this.xpValue = Math.max(1, Math.ceil(1 / (gameState.difficultyMultiplier * 0.5 + 0.5)));
+                    this.moneyValue = Math.ceil(3 * gameState.difficultyMultiplier); // (추가) 돈 획득
                     this.emoji = '🦇';
                 } else if (type === 'ultra') {
-                    this.radius = 30; // 큼
-                    this.speed = 0.8 + Math.random() * 0.2; // 느림
-                    this.maxHp = Math.ceil(100 * diff);
-                    this.damage = Math.ceil(10 * diff);
-                    this.xpValue = Math.max(5, Math.ceil(20 / (diff * 0.5 + 0.5)));
+                    this.radius = 20; // 30 -> 20 (크기 감소)
+                    this.speed = 0.6 + Math.random() * 0.1; // 0.8 -> 0.6 (속도 감소)
+                    this.maxHp = Math.ceil(100 * gameState.difficultyMultiplier);
+                    this.damage = Math.ceil(10 * gameState.difficultyMultiplier);
+                    this.xpValue = Math.max(5, Math.ceil(20 / (gameState.difficultyMultiplier * 0.5 + 0.5)));
+                    this.moneyValue = Math.ceil(20 * gameState.difficultyMultiplier); // (추가) 돈 획득
                     this.emoji = '🦖';
                 }
                 this.hp = this.maxHp;
@@ -719,6 +1460,16 @@
                     const now = Date.now();
                     if (now - this.lastAttackTime > this.attackCooldown) {
                         playerBase.takeDamage(this.damage);
+                        
+                        // FIX: Enemy.update 사운드 충돌 방지를 위한 랜덤 오프셋 제거 및 try-catch 추가
+                        if (isAudioInitialized) {
+                            try { // (추가) try-catch로 예약 시간 충돌 방어
+                                sounds.enemyHitSynth.triggerAttackRelease("A2", "0.1", Tone.now()); // 기지 피격 사운드
+                            } catch (e) {
+                                // 사운드 충돌 무시
+                            }
+                        }
+                        
                         this.lastAttackTime = now;
                     }
                 } else {
@@ -747,16 +1498,42 @@
                     ctx.fillStyle = '#00FF00'; // 녹색 (현재 체력)
                     ctx.fillRect(this.x - hpBarWidth / 2, yOffset, hpBarWidth * (this.hp / this.maxHp), hpBarHeight);
                 }
-            }
-
-            takeDamage(amount) {
-                this.hp -= amount;
-                if (this.hp <= 0) {
-                    this.die();
+                
+                // (수정) 이레디에잇 효과 시각화
+                if (gameState.skills.irradiate.isActive) {
+                    const distToCenter = distance(this, gameState.playerBase);
+                    if (distToCenter < SKILL_DATA_BASE.irradiate.radius) {
+                        ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'; // 초록색 DOT 이펙트
+                        ctx.beginPath();
+                        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
             }
 
+            takeDamage(amount) {
+                // (수정) 데미지 텍스트 생성 로직 추가
+                const damageTaken = Math.min(amount, this.hp); // 실제 입는 데미지
+                const color = damageTaken >= 50 ? '#FF0000' : (damageTaken >= 10 ? '#FFFF00' : '#FFFFFF');
+                gameState.effects.push(new FloatingText(
+                    this.x + (Math.random() * 20 - 10), // x축 랜덤 오프셋
+                    this.y - this.radius, 
+                    Math.ceil(damageTaken).toString(), 
+                    color
+                ));
+                
+                this.hp -= amount;
+                if (this.hp <= 0) {
+                    this.die(); // <-- 이 함수가 없었음
+                }
+            }
+
+            // (추가) Enemy 클래스에 die() 메서드를 추가
             die() {
+                // (수정) 돈 획득 로직 추가
+                userData.money += this.moneyValue;
+                updateMoneyDisplay();
+
                 // 적 배열에서 제거
                 const index = gameState.enemies.indexOf(this);
                 if (index > -1) {
@@ -767,6 +1544,7 @@
                 gameState.killCount++;
                 ui.killCount.textContent = `Kills: ${gameState.killCount}`;
             }
+            // (추가) die() 메서드 끝
         }
 
         // 업그레이드 목록
@@ -830,16 +1608,16 @@
             
             switch (id) {
                 case 'add_marine':
-                    gameState.weapons.push(new Weapon('marine', playerBase));
+                    gameState.weapons.push(new BunkerWeapon('marine', playerBase)); // (수정) UnitWeapon -> BunkerWeapon
                     break;
                 case 'add_firebat':
-                    gameState.weapons.push(new Weapon('firebat', playerBase));
+                    gameState.weapons.push(new BunkerWeapon('firebat', playerBase)); // (수정) UnitWeapon -> BunkerWeapon
                     break;
                 case 'add_tank':
-                    gameState.weapons.push(new Weapon('tank', playerBase));
+                    gameState.weapons.push(new BunkerWeapon('tank', playerBase)); // (수정) UnitWeapon -> BunkerWeapon
                     break;
                 case 'add_ghost':
-                    gameState.weapons.push(new Weapon('ghost', playerBase));
+                    gameState.weapons.push(new BunkerWeapon('ghost', playerBase)); // (수정) UnitWeapon -> BunkerWeapon
                     break;
                 
                 case 'upgrade_marine':
@@ -869,6 +1647,186 @@
             gameState.isLevelUp = false;
             pauseGame(false); // 게임 재개
         }
+
+        // --- 영구 업그레이드 상점 로직 ---
+
+        // 영구 상점 UI 업데이트
+        function showPermanentShop() {
+            ui.shopMoneyInfo.textContent = `현재 자금: 💰 ${userData.money.toLocaleString()}`;
+            ui.permanentUpgradeContainer.innerHTML = ''; // 초기화
+
+            const createUpgradeItem = (key, data) => {
+                const isSkill = key.startsWith('buy');
+                const userLevelKey = isSkill ? 
+                                     (key === 'buyIrradiate' ? 'irradiateLevel' : 'defensiveMatrixLevel') // (수정) 스킬 키를 직접 지정하여 대소문자 문제 해결
+                                     : `${key}Level`; // 일반 업그레이드
+                
+                // (수정) userData[userLevelKey]가 undefined일 경우 0으로 안전하게 초기화
+                const currentLevel = Number(userData[userLevelKey]) || 0;
+                
+                let cost, isMax;
+                
+                // cost 계산 로직은 그대로 유지
+                cost = Math.ceil(data.costBase * Math.pow(data.costMultiplier, currentLevel));
+                isMax = currentLevel >= data.maxLevel;
+
+                let effectDesc;
+                let levelText = `LV. ${currentLevel}/${data.maxLevel}`;
+                
+                if (isSkill) {
+                    // [핵심 수정]: SKILL_DATA_BASE의 키는 소문자이므로 소문자로 변환합니다.
+                    const skillName = key.substring(3).toLowerCase(); 
+                    const baseData = SKILL_DATA_BASE[skillName];
+                    const currentLvl = currentLevel;
+                    const nextLvl = currentLevel + 1;
+
+                    // baseData가 undefined일 경우, 이 조건을 통과하면 오류가 납니다.
+                    // Firebase 로드 전에 이 함수가 호출되거나 데이터 키가 잘못된 경우, 
+                    // baseData가 undefined일 수 있지만, 현재 문제의 원인은 대소문자 문제이므로, 
+                    // baseData는 존재한다고 가정하고 진행합니다. (대소문자 수정 후에는 정상 동작해야 함)
+                    if (!baseData) {
+                         console.error(`Missing skill data for key: ${skillName}`);
+                         return null; // 오류 방지를 위해 null 반환
+                    }
+
+
+                    if (currentLvl === 0) {
+                        levelText = '미구매';
+                        // 첫 구매 시 (레벨 1)의 효과 표시
+                        const nextDuration = baseData.duration + (1 * baseData.durationIncreasePerLevel);
+                        const nextCooldown = baseData.cooldown - (1 * baseData.cooldownDecreasePerLevel);
+
+                        if (skillName === 'irradiate') {
+                            effectDesc = `(LV.1) DOT ${Math.ceil(nextDuration / 1000)}초, 쿨 ${Math.ceil(nextCooldown / 1000)}초`;
+                        } else {
+                            effectDesc = `(LV.1) 1뎀 캡 ${Math.ceil(nextDuration / 1000)}초, 쿨 ${Math.ceil(nextCooldown / 1000)}초`;
+                        }
+
+                    } else if (currentLvl < data.maxLevel) {
+                         // 레벨업 시 (다음 레벨)의 효과 표시
+                         const nextDuration = baseData.duration + (nextLvl * baseData.durationIncreasePerLevel);
+                         const nextCooldown = baseData.cooldown - (nextLvl * baseData.cooldownDecreasePerLevel);
+
+                         if (skillName === 'irradiate') {
+                             effectDesc = `(LV.${nextLvl}) DOT ${Math.ceil(nextDuration / 1000)}초, 쿨 ${Math.ceil(nextCooldown / 1000)}초`;
+                         } else {
+                             effectDesc = `(LV.${nextLvl}) 1뎀 캡 ${Math.ceil(nextDuration / 1000)}초, 쿨 ${Math.ceil(nextCooldown / 1000)}초`;
+                         }
+                    } else { // Max Level
+                         // 현재 (최대 레벨)의 효과 표시
+                         const maxDuration = baseData.duration + (currentLvl * baseData.durationIncreasePerLevel);
+                         const maxCooldown = baseData.cooldown - (currentLvl * baseData.cooldownDecreasePerLevel);
+
+                         if (skillName === 'irradiate') {
+                             effectDesc = `(LV.${currentLvl}) DOT ${Math.ceil(maxDuration / 1000)}초, 쿨 ${Math.ceil(maxCooldown / 1000)}초`;
+                         } else {
+                             effectDesc = `(LV.${currentLvl}) 1뎀 캡 ${Math.ceil(maxDuration / 1000)}초, 쿨 ${Math.ceil(maxCooldown / 1000)}초`;
+                         }
+                    }
+                } else {
+                    if (key === 'baseDamage') effectDesc = `레벨당 +${data.effectPerLevel} 기본 데미지`;
+                    else if (key === 'baseHP') effectDesc = `레벨당 +${data.effectPerLevel} 최대 HP`;
+                    else if (key === 'baseRegen') effectDesc = `레벨당 +${data.effectPerLevel} 초당 HP 재생`;
+                    else if (key === 'initialMoney') effectDesc = `레벨당 +${data.effectPerLevel} 시작 자금`;
+                    else effectDesc = "";
+                }
+                
+
+
+                const div = document.createElement('div');
+                div.className = 'upgrade-option';
+                // (수정) Max Level일 때 Level 표시
+                const titleText = isMax ? `${data.title} (최대 레벨)` : `${data.title} (${levelText})`;
+                div.innerHTML = `
+                    <h3>${titleText}</h3>
+                    <p>${isMax ? '최대 효과 달성.' : effectDesc}</p>
+                    <p>${isMax ? '더 이상 업그레이드할 수 없습니다.' : `비용: 💰 ${cost.toLocaleString()}`}</p>
+                `;
+
+                if (!isMax && userData.money >= cost) {
+                    div.style.cursor = 'pointer';
+                    div.style.opacity = 1;
+                    div.onclick = () => buyPermanentUpgrade(key, cost);
+                } else {
+                    div.style.cursor = 'default';
+                    div.style.opacity = 0.6;
+                }
+                return div;
+            };
+
+            // (수정) createUpgradeItem에서 null이 반환될 수 있으므로, null 체크를 추가합니다.
+            const baseDamageItem = createUpgradeItem('baseDamage', permanentUpgrades.baseDamage);
+            if (baseDamageItem) ui.permanentUpgradeContainer.appendChild(baseDamageItem);
+
+            const baseHPItem = createUpgradeItem('baseHP', permanentUpgrades.baseHP);
+            if (baseHPItem) ui.permanentUpgradeContainer.appendChild(baseHPItem);
+            
+            const baseRegenItem = createUpgradeItem('baseRegen', permanentUpgrades.baseRegen);
+            if (baseRegenItem) ui.permanentUpgradeContainer.appendChild(baseRegenItem);
+            
+            const initialMoneyItem = createUpgradeItem('initialMoney', permanentUpgrades.initialMoney);
+            if (initialMoneyItem) ui.permanentUpgradeContainer.appendChild(initialMoneyItem);
+            
+            // 스킬 구매 옵션 추가
+            const irradiateItem = createUpgradeItem('buyIrradiate', permanentUpgrades.buyIrradiate);
+            if (irradiateItem) ui.permanentUpgradeContainer.appendChild(irradiateItem);
+
+            const defMatrixItem = createUpgradeItem('buyDefensiveMatrix', permanentUpgrades.buyDefensiveMatrix);
+            if (defMatrixItem) ui.permanentUpgradeContainer.appendChild(defMatrixItem);
+            
+            ui.permanentShopOverlay.style.display = 'flex';
+        }
+
+        // 영구 업그레이드 구매
+        function buyPermanentUpgrade(key, cost) {
+            const data = permanentUpgrades[key];
+            const isSkill = key.startsWith('buy');
+            
+            // (수정) 스킬 키를 명확하게 지정하고, 일반 업그레이드는 기존 로직을 따르되 소문자화
+            let userLevelKey;
+            if (key === 'buyIrradiate') {
+                userLevelKey = 'irradiateLevel';
+            } else if (key === 'buyDefensiveMatrix') {
+                userLevelKey = 'defensiveMatrixLevel';
+            } else {
+                userLevelKey = `${key}Level`;
+            }
+
+            // (수정) Number()를 사용하여 현재 레벨이 항상 유효한 숫자인지 확인
+            let currentLevel = Number(userData[userLevelKey]) || 0;
+            
+            if (currentLevel >= data.maxLevel) { 
+                return; // 이미 최대 레벨
+            }
+
+
+            if (userData.money >= cost) {
+                userData.money -= cost;
+                
+                // 레벨 증가
+                userData[userLevelKey] = currentLevel + 1; // (수정) 안전하게 1 증가
+                
+                // 스킬 업그레이드일 경우, 스탯 재계산
+                if (isSkill) {
+                    calculateSkillStats();
+                    // 스킬 버튼 활성화 (게임이 실행 중일 경우)
+                    if (gameState.isRunning) {
+                        if (userLevelKey === 'irradiateLevel') ui.skillIrradiate.disabled = false;
+                        if (userLevelKey === 'defensiveMatrixLevel') ui.skillDefMatrix.disabled = false;
+                    }
+                }
+                
+                // 데이터 저장 및 UI 업데이트
+                updateMoneyDisplay();
+                saveUserData(); 
+                showPermanentShop(); // 상점 UI 새로고침
+
+                console.log(`${data.title} 레벨 ${userData[userLevelKey]} 업그레이드 완료.`);
+            } else {
+                console.log("자금이 부족합니다.");
+            }
+        }
+        
         
         // 보유 유닛 수 UI 업데이트
         function updateUnitCountUI() {
@@ -901,6 +1859,9 @@
 
         // 게임 스폰 로직
         function handleSpawning(deltaTime) {
+            // (추가) deltaTime이 유효한 값일 때만 타이머 증가
+            if (deltaTime <= 0) return;
+            
             gameState.spawnTimer += deltaTime;
             // 난이도 배율에 따라 스폰 간격 조절
             const currentSpawnInterval = gameState.spawnInterval / gameState.difficultyMultiplier;
@@ -925,6 +1886,270 @@
                 gameState.enemies.push(new Enemy(enemyType));
             }
         }
+        
+        // (추가) 스킬 관리 로직
+        function handleSkills(deltaTime) {
+            const now = Date.now();
+            
+            // --- 1. 이레디에잇 (Irradiate) ---
+            const irradiate = gameState.skills.irradiate;
+            if (irradiate.isActive) {
+                irradiate.durationRemaining -= deltaTime;
+                const skillDotDamage = SKILL_DATA_BASE.irradiate.dotDamage * (deltaTime / 1000); // 초당 피해를 델타 타임에 맞춰 분할
+                
+                // 벙커 주변 적에게 DOT 피해 적용
+                gameState.enemies.forEach(enemy => {
+                    const dist = distance(enemy, gameState.playerBase);
+                    if (dist < SKILL_DATA_BASE.irradiate.radius) {
+                        // 데미지 텍스트는 1초마다만 표시
+                        if (gameState.elapsedTime % 1000 < deltaTime) {
+                            gameState.effects.push(new FloatingText(
+                                enemy.x + (Math.random() * 10 - 5), 
+                                enemy.y - enemy.radius - 10, 
+                                SKILL_DATA_BASE.irradiate.emoji, // (수정) 이모지로 표시
+                                '#00FF00', // 초록색 DOT
+                                18, 
+                                -0.3, 
+                                800
+                            ));
+                        }
+                        enemy.hp -= skillDotDamage;
+                        if (enemy.hp <= 0) enemy.die();
+                    }
+                });
+
+                if (irradiate.durationRemaining <= 0) {
+                    irradiate.isActive = false;
+                }
+            }
+
+            // 쿨타임 업데이트
+            if (irradiate.lastUseTime > 0) {
+                const timeElapsed = now - irradiate.lastUseTime;
+                const cooldownRemaining = Math.max(0, SKILL_DATA.irradiate.cooldown - timeElapsed);
+                // UI 업데이트
+                if (cooldownRemaining > 0) {
+                    ui.skillIrradiateCooldown.style.display = 'flex';
+                    ui.skillIrradiateCooldown.textContent = Math.ceil(cooldownRemaining / 1000);
+                } else {
+                    ui.skillIrradiateCooldown.style.display = 'none';
+                    if (userData.irradiateLevel > 0) ui.skillIrradiate.disabled = false; // (수정) 레벨 > 0 일 때 활성화
+                }
+            }
+            
+            // --- 2. 디펜시브 매트릭스 (Defensive Matrix) ---
+            const defMatrix = gameState.skills.defensivematrix;
+            if (defMatrix.isActive) {
+                defMatrix.durationRemaining -= deltaTime;
+                if (defMatrix.durationRemaining <= 0) {
+                    defMatrix.isActive = false;
+                }
+            }
+
+            // 쿨타임 업데이트
+            if (defMatrix.lastUseTime > 0) {
+                const timeElapsed = now - defMatrix.lastUseTime;
+                const cooldownRemaining = Math.max(0, SKILL_DATA.defensivematrix.cooldown - timeElapsed);
+                // UI 업데이트
+                if (cooldownRemaining > 0) {
+                    ui.skillDefMatrixCooldown.style.display = 'flex';
+                    ui.skillDefMatrixCooldown.textContent = Math.ceil(cooldownRemaining / 1000);
+                } else {
+                    ui.skillDefMatrixCooldown.style.display = 'none';
+                    if (userData.defensiveMatrixLevel > 0) ui.skillDefMatrix.disabled = false; // (수정) userData.defensiveMatrixLevel 사용
+                }
+            }
+        }
+
+
+        // 게임 일시정지/재개 (레벨업 시 사용)
+        function pauseGame(isPaused) {
+            gameState.isPaused = isPaused;
+            if (isPaused) {
+                // BGM은 계속 재생
+            } else {
+                // (수정) lastTime을 0으로 리셋하여 gameLoop가 timestamp로 재설정하도록 함
+                // (Date.now() 사용 시 timestamp와 어긋나서 음수 deltaTime 발생)
+                gameState.lastTime = 0; 
+                if (!gameState.isLevelUp && gameState.isRunning) { // 레벨업이 아닐 때만 gameLoop 재시작
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+        }
+
+        // 게임 오버 함수 (오류 수정)
+        function gameOver() {
+            gameState.isRunning = false;
+            document.getElementById('game-over-stats').textContent = `최종 생존 시간: ${formatTime(gameState.elapsedTime)} | 최종 킬 수: ${gameState.killCount}`;
+            ui.gameOverOverlay.style.display = 'flex';
+            saveUserData(); // 게임 오버 시 돈 저장
+        }
+
+        // 메인 게임 루프 (오류 수정)
+        function gameLoop(timestamp) {
+            if (!gameState.isRunning) return; // 게임 오버 시 중지
+            
+            // (수정) 첫 프레임 또는 unpause 시 lastTime을 리셋합니다.
+            if (gameState.lastTime === 0) {
+                gameState.lastTime = timestamp;
+                requestAnimationFrame(gameLoop); // 다음 프레임부터 델타 계산 시작
+                return;
+            }
+            
+            if (gameState.isPaused || gameState.isLevelUp || gameState.isUserPaused) { // (수정) isUserPaused 추가
+                // 게임이 일시정지 (레벨업 또는 사용자 일시정지 포함)
+                gameState.lastTime = timestamp; // lastTime을 업데이트하여 일시정지 해제 시 deltaTime이 튀는 것을 방지
+                requestAnimationFrame(gameLoop); // 루프는 계속 돌지만,
+                return; // 업데이트/그리기는 건너뛰m
+            }
+
+            let deltaTime = timestamp - gameState.lastTime;
+            gameState.lastTime = timestamp; // lastTime을 현재 timestamp로 업데이트
+
+            // (추가) 비정상적인 deltaTime 값 방지 (예: 창 비활성화 후 복귀, 1초=1000ms)
+            // (음수 값도 여기서 차단됨)
+            if (deltaTime < 0 || deltaTime > 1000) {
+                deltaTime = 0; // 비정상적인 프레임은 건너뛰고, 다음 프레임부터 정상 계산
+            }
+
+            gameState.elapsedTime += deltaTime;
+
+            // --- 1. 업데이트 (로직) ---
+            handleSpawning(deltaTime);
+            gameState.playerBase.update(deltaTime);
+            handleSkills(deltaTime); // (추가) 스킬 업데이트
+            
+            // 배열 복사본을 만들어 순회 (업데이트 중 배열이 수정될 수 있으므로)
+            [...gameState.weapons].forEach(w => w.update(deltaTime));
+            [...gameState.projectiles].forEach(p => p.update(deltaTime));
+            [...gameState.enemies].forEach(e => e.update(deltaTime));
+            [...gameState.effects].forEach(ef => ef.update(deltaTime)); // (수정) 플로팅 텍스트/효과 업데이트
+            
+            // --- 2. 그리기 (시각) ---
+            ctx.clearRect(0, 0, width, height);
+            
+            // 순서대로 그리기 (투사체 -> 적 -> 기지 -> 효과)
+            [...gameState.projectiles].forEach(p => p.draw());
+            // (추가) 스킬 효과 그리기
+            drawSkills(); 
+            [...gameState.enemies].forEach(e => e.draw());
+            gameState.playerBase.draw(); // 기지 그리기
+            [...gameState.effects].forEach(ef => ef.draw()); // (수정) 플로팅 텍스트/효과 그리기
+
+            // --- 3. UI 업데이트 ---
+            ui.timer.textContent = formatTime(gameState.elapsedTime);
+            updateMonsterInfoUI();
+
+            // 다음 프레임 요청
+            requestAnimationFrame(gameLoop);
+        }
+
+        // (추가) 스킬 효과 그리기
+        function drawSkills() {
+            const base = gameState.playerBase;
+            const now = Date.now();
+            
+            // 1. 디펜시브 매트릭스 쉴드 (수정)
+            if (gameState.skills.defensivematrix.isActive) {
+                const skill = gameState.skills.defensivematrix;
+                const totalDuration = SKILL_DATA.defensivematrix.duration;
+                const remaining = skill.durationRemaining;
+                const radius = base.radius + 15; // 쉴드 크기를 기지보다 조금 더 크게 설정
+                
+                // (수정) 이모지 크기를 3배(90px)로 키우고 쉴드와 동일한 위치에 그립니다.
+                const fontSize = 90; 
+                
+                let alpha = 0.8;
+                
+                // 지속 시간 마지막 20% 동안 깜빡임 효과 적용
+                if (remaining < totalDuration * 0.2) {
+                    if (now % 300 < 150) { // 0.3초 주기로 깜빡임
+                        alpha = 0.0;
+                    }
+                }
+                
+                ctx.strokeStyle = '#00BFFF';
+                ctx.lineWidth = 5;
+                ctx.globalAlpha = alpha;
+                
+                // 방어막 그리기
+                ctx.beginPath();
+                ctx.arc(base.x, base.y, radius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // 이모지 그리기 (쉴드와 동일한 위치, 크기)
+                ctx.font = `bold ${fontSize}px sans-serif`;
+                ctx.fillStyle = '#00BFFF';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(SKILL_DATA.defensivematrix.emoji, base.x, base.y);
+                
+                ctx.globalAlpha = 1.0;
+            }
+
+            // 2. 이레디에잇 효과 범위
+            if (gameState.skills.irradiate.isActive) {
+                const pulse = Math.sin(Date.now() / 100) * 0.1 + 0.15; // DOT 영역 깜빡임
+                ctx.fillStyle = `rgba(0, 255, 0, ${pulse})`;
+                ctx.beginPath();
+                ctx.arc(base.x, base.y, SKILL_DATA_BASE.irradiate.radius, 0, Math.PI * 2); // (수정) BASE.radius 사용
+                ctx.fill();
+                
+                // (추가) 방사능 이모지 그리기
+                // (수정) 이모지 크기를 3배(90px)로 키웁니다.
+                ctx.font = 'bold 90px sans-serif'; 
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(SKILL_DATA_BASE.irradiate.emoji, base.x, base.y); // (수정) BASE.emoji 사용
+                
+                ctx.globalAlpha = 1.0;
+            }
+        }
+
+
+        // 게임 재시작 함수 (오류 수정)
+        function restartGame() {
+            ui.gameOverOverlay.style.display = 'none';
+            ui.startOverlay.style.display = 'flex';
+            gameState.isRunning = false; // 루프 중지
+            saveUserData(); // 게임 오버 시 돈 저장
+        }
+        
+        // --- 함수 정의 끝 ---
+        
+        // (추가) 스킬 사용 함수
+        function useSkill(skillId) {
+            if (!gameState.isRunning || gameState.isPaused || gameState.isLevelUp) return;
+            
+            const skill = gameState.skills[skillId];
+            const now = Date.now();
+            
+            // 쿨타임 확인
+            if (now - skill.lastUseTime < SKILL_DATA[skillId].cooldown) {
+                console.log(`${skillId} 쿨타임이 남았습니다.`);
+                return;
+            }
+
+            // 스킬 활성화
+            skill.isActive = true;
+            skill.lastUseTime = now;
+            // (수정) SKILL_DATA가 defensivematrix 키를 사용하도록 수정
+            skill.durationRemaining = SKILL_DATA[skillId].duration; 
+            
+            // 버튼 비활성화 및 쿨타임 표시 시작
+            if (skillId === 'irradiate') {
+                ui.skillIrradiate.disabled = true;
+                ui.skillIrradiateCooldown.style.display = 'flex';
+                // 사운드: 이레디에잇 (Ghost Synth 재활용)
+                if (isAudioInitialized) sounds.ghostSynth.triggerAttackRelease("G4", "0.2", Tone.now());
+            } else if (skillId === 'defensivematrix') {
+                ui.skillDefMatrix.disabled = true;
+                ui.skillDefMatrixCooldown.style.display = 'flex';
+                // 사운드: 디펜시브 매트릭스 (Tank Synth 재활용)
+                 if (isAudioInitialized) sounds.tankSynth.triggerAttackRelease("C3", "0.4", Tone.now());
+            }
+        }
+
 
         // 게임 시작
         function startGame(difficulty) {
@@ -932,25 +2157,45 @@
             
             const playerBase = new PlayerBase();
             
-            gameState = {
-                isRunning: true,
-                isPaused: false,
-                isLevelUp: false,
-                startTime: Date.now(),
-                elapsedTime: 0,
-                lastTime: Date.now(),
-                killCount: 0,
-                playerBase: playerBase,
-                enemies: [],
-                projectiles: [],
-                effects: [], // 효과 배열 초기화
-                weapons: [new Weapon('marine', playerBase)], // 기본 마린 1기
-                spawnTimer: 0,
-                spawnInterval: 2500, // 기본 스폰 간격 (상향)
-                difficultyMultiplier: difficulty, // 선택된 난이도 배율 설정
-                lastMonsterInfo: "" // 몬스터 정보 캐시 초기화
-            };
+            // (수정) gameState 객체를 새로 덮어쓰는 대신, 속성만 리셋합니다.
+            // 이렇게 하면 isBgmOn, isSfxOn 같은 기존 설정이 유지됩니다.
             
+            gameState.isRunning = true;
+            gameState.isPaused = false;
+            gameState.isLevelUp = false;
+            gameState.isUserPaused = false; // (추가)
+            gameState.elapsedTime = 0;
+            gameState.lastTime = 0; 
+            gameState.killCount = 0;
+            gameState.playerBase = playerBase;
+            gameState.enemies = [];
+            gameState.projectiles = [];
+            gameState.effects = []; 
+            gameState.weapons = [new BunkerWeapon('marine', playerBase)]; // (수정) UnitWeapon -> BunkerWeapon
+            gameState.spawnTimer = 0;
+            gameState.spawnInterval = 2500; 
+            gameState.difficultyMultiplier = difficulty; 
+            gameState.lastMonsterInfo = ""; 
+            
+            // (추가) 스킬 쿨타임 초기화
+            gameState.skills.irradiate.lastUseTime = 0;
+            gameState.skills.irradiate.isActive = false;
+            gameState.skills.defensivematrix.lastUseTime = 0;
+            gameState.skills.defensivematrix.isActive = false;
+
+            
+            // (추가) 영구 업그레이드된 시작 자금 적용
+            const moneyBonus = userData.initialMoneyLevel * permanentUpgrades.initialMoney.effectPerLevel;
+            userData.money += moneyBonus;
+            updateMoneyDisplay();
+
+            // (추가) 스킬 버튼 초기 상태 설정
+            ui.skillIrradiate.disabled = userData.irradiateLevel === 0; // (수정) 레벨이 0이면 비활성화
+            ui.skillDefMatrix.disabled = userData.defensiveMatrixLevel === 0; // (수정) 레벨이 0이면 비활성화
+            ui.skillIrradiateCooldown.style.display = 'none';
+            ui.skillDefMatrixCooldown.style.display = 'none';
+
+
             // UI 초기화
             ui.startOverlay.style.display = 'none';
             ui.gameOverOverlay.style.display = 'none';
@@ -960,91 +2205,189 @@
             ui.xpFill.style.width = '0%';
             ui.bunkerHpFill.style.width = '100%';
             ui.monsterInfo.textContent = '등장: 🐛'; // 몬스터 정보 초기화
+            ui.pauseOverlay.style.display = 'none'; // (추가)
+            ui.pauseToggle.textContent = 'PAUSE ⏸️'; // (추가)
+            ui.pauseToggle.classList.remove('off'); // (추가)
             updateUnitCountUI(); // 유닛 수 초기화
 
             requestAnimationFrame(gameLoop);
         }
 
-        // 게임 오버
-        function gameOver() {
-            gameState.isRunning = false;
-            document.getElementById('game-over-stats').textContent = `최종 생존 시간: ${formatTime(gameState.elapsedTime)} | 최종 킬 수: ${gameState.killCount}`;
-            ui.gameOverOverlay.style.display = 'flex';
-        }
-        
-        // 다시 시작 (시작 화면으로)
-        function restartGame() {
-            ui.gameOverOverlay.style.display = 'none';
-            ui.startOverlay.style.display = 'flex';
+        // --- 오디오 토글 함수 ---
+        function toggleBGM() {
+            // (수정) 오디오가 초기화되지 않았다면, 첫 클릭 시 초기화를 시도합니다.
+            if (!isAudioInitialized) {
+                Tone.start().then(initAudio).then(() => {
+                    // initAudio가 완료된 후 로직 실행
+                    gameState.isBgmOn = !gameState.isBgmOn;
+                    toggleBGMUI(gameState.isBgmOn); // UI 업데이트 및 Transport 제어
+                });
+                return; // 초기화가 비동기적으로 실행되므로 여기서 종료
+            }
+            
+            gameState.isBgmOn = !gameState.isBgmOn;
+            toggleBGMUI(gameState.isBgmOn); // UI 업데이트 및 Transport 제어
         }
 
-        // 게임 일시정지/재개
-        function pauseGame(isPaused) {
-            gameState.isPaused = isPaused;
-            if (!isPaused) {
-                gameState.lastTime = Date.now();
-                if (!gameState.isLevelUp) {
+        // (추가) BGM UI 및 Transport 제어 로직 분리
+        function toggleBGMUI(isOn) {
+            if (isAudioInitialized) {
+                // (수정) 패드와 드럼 볼륨을 함께 제어
+                sounds.bgmSynth.volume.value = isOn ? +10 : -Infinity; // (최종 수정) +10dB로 통일
+                sounds.bgmDrum.volume.value = isOn ? +10 : -Infinity; // (수정) 드럼 볼륨 +10dB
+                // (삭제) 드럼 볼륨 제어 제거
+                // (수정) Transport 제어 로직을 제거합니다. 볼륨으로만 제어합니다.
+                /*
+                if (isOn) { 
+                    // BGM을 켜는 경우
+                    // (수정) 게임 실행 중 여부와 관계없이 Transport를 시작합니다.
+                    Tone.Transport.start();
+                } else {
+                    // BGM을 끄는 경우
+                    Tone.Transport.stop();
+                }
+                */
+            }
+            ui.bgmToggle.textContent = isOn ? 'BGM: 🎵' : 'BGM: 🔇';
+            ui.bgmToggle.classList.toggle('off', !isOn);
+        }
+
+        function toggleSFX() {
+             // (수정) 오디오가 초기화되지 않았다면, 첫 클릭 시 초기화를 시도합니다.
+            if (!isAudioInitialized) {
+                Tone.start().then(initAudio).then(() => {
+                    // initAudio가 완료된 후 로직 실행
+                    gameState.isSfxOn = !gameState.isSfxOn;
+                    toggleSFXUI(gameState.isSfxOn); // UI 업데이트
+                });
+                return; // 초기화가 비동기적으로 실행되므로 여기서 종료
+            }
+            
+            gameState.isSfxOn = !gameState.isSfxOn;
+            toggleSFXUI(gameState.isSfxOn); // UI 업데이트
+        }
+        
+        // (추가) SFX UI 및 볼륨 제어 로직 분리
+        function toggleSFXUI(isOn) {
+            if (isAudioInitialized) {
+                const volume = isOn ? 0 : -Infinity;
+                const tankVolume = isOn ? -10 : -Infinity;
+                const ghostVolume = isOn ? -15 : -Infinity;
+                const hitVolume = isOn ? -5 : -Infinity;
+
+                sounds.marineSynth.volume.value = volume;
+                sounds.firebatSynth.volume.value = volume;
+                sounds.tankSynth.volume.value = tankVolume;
+                sounds.ghostSynth.volume.value = ghostVolume;
+                sounds.enemyHitSynth.volume.value = hitVolume;
+            }
+            
+            ui.sfxToggle.textContent = isOn ? 'SFX: 🔊' : 'SFX: 🔇';
+            ui.sfxToggle.classList.toggle('off', !isOn);
+        } // (수정) 닫는 중괄호 추가
+
+        // (추가) 사용자 일시정지 토글 함수
+        function toggleUserPause() {
+            if (!gameState.isRunning) return; // 게임이 실행 중일 때만
+            if (ui.permanentShopOverlay.style.display === 'flex') return; // (추가) 상점 열려있을 때는 이 버튼 무시
+
+            gameState.isUserPaused = !gameState.isUserPaused;
+
+            if (gameState.isUserPaused) {
+                // 게임 일시정지
+                ui.pauseOverlay.style.display = 'flex';
+                ui.pauseToggle.textContent = 'RESUME ▶️';
+                ui.pauseToggle.classList.add('off');
+                // BGM은 계속 재생
+            } else {
+                // 게임 재개
+                ui.pauseOverlay.style.display = 'none';
+                ui.pauseToggle.textContent = 'PAUSE ⏸️';
+                ui.pauseToggle.classList.remove('off');
+                
+                // lastTime을 리셋하여 deltaTime이 튀는 것을 방지
+                gameState.lastTime = 0; 
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        
+        // (추가) 영구 상점 토글 함수
+        function togglePermanentShop() {
+            if (ui.permanentShopOverlay.style.display === 'flex') {
+                // 상점 닫기
+                ui.permanentShopOverlay.style.display = 'none';
+                
+                // (수정) 게임이 실행 중이었고 상점으로 인해 일시정지된 상태라면 재개
+                if (gameState.isRunning && gameState.isUserPaused) { 
+                    gameState.isUserPaused = false; // 일시정지 해제
+                    gameState.lastTime = 0; // 시간 리셋
                     requestAnimationFrame(gameLoop);
                 }
+            } else {
+                // 상점 열기
+                 if (gameState.isRunning && !gameState.isUserPaused) {
+                    // (수정) 게임 상태만 일시정지. PAUSE UI는 건드리지 않음.
+                    gameState.isUserPaused = true;
+                    ui.pauseOverlay.style.display = 'none'; // 혹시 모를 PAUSED 오버레이 방지
+                }
+                showPermanentShop();
             }
         }
 
-        // 메인 게임 루프
-        function gameLoop() {
-            if (!gameState.isRunning || gameState.isPaused || gameState.isLevelUp) {
-                return;
-            }
 
-            const now = Date.now();
-            const deltaTime = now - gameState.lastTime;
-            gameState.lastTime = now;
-            
-            // 프레임 드랍 방지 (최대 100ms까지만 인정)
-            const effectiveDeltaTime = Math.min(deltaTime, 100); 
-
-            gameState.elapsedTime += effectiveDeltaTime;
-            ui.timer.textContent = formatTime(gameState.elapsedTime);
-
-            // 업데이트
-            gameState.playerBase.update(effectiveDeltaTime);
-            gameState.weapons.forEach(w => w.update(effectiveDeltaTime));
-            [...gameState.enemies].forEach(enemy => enemy.update(effectiveDeltaTime));
-            [...gameState.projectiles].forEach(p => p.update(effectiveDeltaTime));
-            [...gameState.effects].forEach(e => e.update(effectiveDeltaTime)); // 효과 업데이트
-            
-            // UI 업데이트
-            updateMonsterInfoUI();
-
-            // 스포닝
-            handleSpawning(effectiveDeltaTime);
-
-            // 그리기
-            ctx.clearRect(0, 0, width, height);
-            gameState.playerBase.draw();
-            gameState.enemies.forEach(enemy => enemy.draw());
-            gameState.projectiles.forEach(p => p.draw());
-            gameState.effects.forEach(e => e.draw()); // 효과 그리기
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        // 이벤트 리스너
-        window.addEventListener('resize', resizeCanvas);
+        // --- 이벤트 리스너 ---
         
-        // 난이도 버튼 이벤트 리스너
+        // 난이도 버튼 리스너
         ui.difficultyButtons.forEach(button => {
             button.addEventListener('click', () => {
-                const difficulty = parseFloat(button.getAttribute('data-diff'));
-                startGame(difficulty);
+                const difficulty = parseFloat(button.dataset.diff);
+                // (수정) 오디오는 난이도 선택 시점에 초기화되어야 합니다.
+                if (!isAudioInitialized) {
+                    // (수정) initAudio가 완료된 후 startGame이 실행되도록 .then() 사용
+                    Tone.start().then(initAudio).then(() => {
+                        startGame(difficulty);
+                    });
+                } else {
+                    startGame(difficulty);
+                }
             });
         });
-        
-        ui.restartButton.addEventListener('click', restartGame); // 다시 시작 버튼 수정
 
-        // 초기 캔버스 크기 설정
+        // 윈도우 리사이즈 이벤트
+        window.addEventListener('resize', resizeCanvas);
+        
+        // (수정) restartButton 리스너 위치 수정
+        ui.restartButton.addEventListener('click', () => { 
+            ui.gameOverOverlay.style.display = 'none';
+            ui.startOverlay.style.display = 'flex';
+            gameState.isRunning = false; // 루프 중지
+            saveUserData(); // 게임 오버 시 돈 저장
+        }); 
+
+        // 상점 버튼 리스너
+        ui.permanentShopBtn.addEventListener('click', togglePermanentShop);
+
+        // 상점 닫기 버튼 리스너
+        ui.closeShopBtn.addEventListener('click', togglePermanentShop);
+
+        // (추가) 스킬 버튼 리스너
+        ui.skillIrradiate.addEventListener('click', () => useSkill('irradiate'));
+        ui.skillDefMatrix.addEventListener('click', () => useSkill('defensivematrix'));
+
+
+        // 오디오 토글 버튼 리스너
+        ui.bgmToggle.addEventListener('click', toggleBGM);
+        ui.sfxToggle.addEventListener('click', toggleSFX);
+        ui.pauseToggle.addEventListener('click', toggleUserPause); // (추가)
+
+        // --- 초기화 및 실행 ---
         resizeCanvas();
+        // (수정) Firebase 초기화 및 데이터 로드 후 시작 오버레이 표시
+        initFirebase().then(() => {
+            ui.loadingOverlay.style.display = 'none';
+            ui.startOverlay.style.display = 'flex';
+        });
         
     </script>
-
 </body>
 </html>
